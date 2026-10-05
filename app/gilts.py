@@ -105,24 +105,28 @@ def parse(body):
     return out
 
 
-def fetch(max_back=5):
-    """The latest available day's prices (today, else up to max_back business days before)."""
+def fetch(max_back=4):
+    """The latest available day's prices (today, else up to max_back business days before).
+
+    Polite by design: one request per day tried, and it stops at the first real file. A file it can't read
+    is printed (start and a slice from the middle) so the parser can be fixed, rather than asking again."""
     day = date.today()
     tried = 0
     while tried <= max_back:
         if day.weekday() < 5:
-            for fmt in ("csv", "xml"):
-                url = ("https://www.dmo.gov.uk/umbraco/surface/DataExport/GetDataExport?reportCode=D10B"
-                       f"&exportFormatValue={fmt}&parameters=%26Trade%20Date%3D{day:%d}%2F{day:%m}%2F{day:%Y}")
-                body = _get(url)
-                rows = parse(body)
-                print(f"{day} {fmt}: {len(body)} bytes, {len(rows)} gilts", flush=True)
-                if len(rows) >= 20:
-                    return day, fmt, rows
-                if not rows:
-                    print("  first bytes:", body[:300], flush=True)
-                time.sleep(3)  # polite: one request every few seconds at most
+            url = ("https://www.dmo.gov.uk/umbraco/surface/DataExport/GetDataExport?reportCode=D10B"
+                   f"&exportFormatValue=csv&parameters=%26Trade%20Date%3D{day:%d}%2F{day:%m}%2F{day:%Y}")
+            body = _get(url)
+            rows = parse(body)
+            print(f"{day}: {len(body)} bytes, {len(rows)} gilts", flush=True)
+            if len(rows) >= 20:
+                return day, "csv", rows
+            if len(body) > 20000:  # a real file we couldn't read: show it and stop
+                print("START:", repr(body[:1500]), flush=True)
+                print("MIDDLE:", repr(body[len(body) // 2:len(body) // 2 + 2500]), flush=True)
+                raise SystemExit("couldn't read the DMO file; see the excerpt above")
             tried += 1
+            time.sleep(5)
         day -= timedelta(days=1)
     raise SystemExit("no gilt prices found in the last business days")
 
