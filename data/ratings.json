@@ -1,0 +1,566 @@
+{
+ "checked": "2026-10-05",
+ "ratings": {
+  "Australia": {
+   "sp": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "16 February 2003"
+   },
+   "fitch": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "27 October 2025"
+   },
+   "moodys": {
+    "r": "Aaa",
+    "o": "Stable",
+    "d": "28 June 2022"
+   }
+  },
+  "Austria": {
+   "sp": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "13 January 2012"
+   },
+   "fitch": {
+    "r": "AA",
+    "o": "Stable",
+    "d": "5 December 2025"
+   },
+   "moodys": {
+    "r": "Aa1",
+    "o": "Stable",
+    "d": "24 February 2023"
+   }
+  },
+  "Belgium": {
+   "sp": {
+    "r": "AA",
+    "o": "Negative",
+    "d": "25 April 2025"
+   },
+   "fitch": {
+    "r": "A+",
+    "o": "Stable",
+    "d": "13 June 2025"
+   },
+   "moodys": {
+    "r": "Aa3",
+    "o": "Stable",
+    "d": "28 April 2023"
+   }
+  },
+  "Brazil": {
+   "sp": {
+    "r": "BB",
+    "o": "Stable",
+    "d": "19 December 2023"
+   },
+   "fitch": {
+    "r": "BB",
+    "o": "Stable",
+    "d": "25 June 2025"
+   },
+   "moodys": {
+    "r": "Ba1",
+    "o": "Positive",
+    "d": "7 October 2024"
+   }
+  },
+  "Canada": {
+   "sp": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "29 July 2002"
+   },
+   "fitch": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "18 July 2025"
+   },
+   "moodys": {
+    "r": "Aaa",
+    "o": "Stable",
+    "d": "3 November 2022"
+   }
+  },
+  "Chile": {
+   "sp": {
+    "r": "A",
+    "o": "Stable",
+    "d": "24 March 2021"
+   },
+   "fitch": {
+    "r": "A-",
+    "o": "Stable",
+    "d": "26 September 2025"
+   },
+   "moodys": {
+    "r": "A2",
+    "o": "Stable",
+    "d": "15 September 2022"
+   }
+  },
+  "China": {
+   "sp": {
+    "r": "A+",
+    "o": "Stable",
+    "d": "21 September 2017"
+   },
+   "fitch": {
+    "r": "A",
+    "o": "Stable",
+    "d": "3 April 2025"
+   },
+   "moodys": {
+    "r": "A1",
+    "o": "Stable",
+    "d": "27 April 2026"
+   }
+  },
+  "Egypt": {
+   "sp": {
+    "r": "B",
+    "o": "Stable",
+    "d": "10 October 2025"
+   },
+   "fitch": {
+    "r": "B",
+    "o": "Stable",
+    "d": "10 October 2025"
+   },
+   "moodys": {
+    "r": "Caa1",
+    "o": "Negative",
+    "d": "18 January 2024"
+   }
+  },
+  "Finland": {
+   "sp": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "10 October 2014"
+   },
+   "fitch": {
+    "r": "AA",
+    "o": "Stable",
+    "d": "25 July 2025"
+   },
+   "moodys": {
+    "r": "Aa1",
+    "o": "Stable",
+    "d": "29 July 2022"
+   }
+  },
+  "France": {
+   "sp": {
+    "r": "A+",
+    "o": "Stable",
+    "d": "17 October 2025"
+   },
+   "fitch": {
+    "r": "A+",
+    "o": "Stable",
+    "d": "6 March 2026"
+   },
+   "moodys": {
+    "r": "Aa3",
+    "o": "Stable",
+    "d": "14 December 2024"
+   }
+  },
+  "Germany": {
+   "sp": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "17 August 1983"
+   },
+   "fitch": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "11 July 2025"
+   },
+   "moodys": {
+    "r": "Aaa",
+    "o": "Stable",
+    "d": "10 February 2023"
+   }
+  },
+  "Greece": {
+   "sp": {
+    "r": "BBB",
+    "o": "Stable",
+    "d": "18 April 2025"
+   },
+   "fitch": {
+    "r": "BBB",
+    "o": "Stable",
+    "d": "14 November 2025"
+   },
+   "moodys": {
+    "r": "Baa3",
+    "o": "Positive",
+    "d": "18 September 2026"
+   }
+  },
+  "Hong Kong": {
+   "sp": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "22 September 2017"
+   },
+   "fitch": {
+    "r": "AA-",
+    "o": "Stable",
+    "d": "23 May 2025"
+   },
+   "moodys": {
+    "r": "Aa3",
+    "o": "Negative",
+    "d": "6 December 2023"
+   }
+  },
+  "Hungary": {
+   "sp": {
+    "r": "BBB-",
+    "o": "Negative",
+    "d": "11 April 2025"
+   },
+   "fitch": {
+    "r": "BBB",
+    "o": "Negative",
+    "d": "5 December 2025"
+   },
+   "moodys": {
+    "r": "Ba1",
+    "o": "Negative",
+    "d": "30 December 2025"
+   }
+  },
+  "India": {
+   "sp": {
+    "r": "BBB",
+    "o": "Stable",
+    "d": "14 August 2025"
+   },
+   "fitch": {
+    "r": "BBB-",
+    "o": "Stable",
+    "d": "25 August 2025"
+   },
+   "moodys": {
+    "r": "Baa3",
+    "o": "Stable",
+    "d": "18 August 2023"
+   }
+  },
+  "Indonesia": {
+   "sp": {
+    "r": "BBB",
+    "o": "Stable",
+    "d": "31 May 2019"
+   },
+   "fitch": {
+    "r": "BBB",
+    "o": "Negative",
+    "d": "4 March 2026"
+   },
+   "moodys": {
+    "r": "Baa2",
+    "o": "Negative",
+    "d": "5 February 2026"
+   }
+  },
+  "Ireland": {
+   "sp": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "20 March 2026"
+   },
+   "fitch": {
+    "r": "AA",
+    "o": "Stable",
+    "d": "7 November 2025"
+   },
+   "moodys": {
+    "r": "Aa3",
+    "o": "Stable",
+    "d": "21 April 2023"
+   }
+  },
+  "Italy": {
+   "sp": {
+    "r": "BBB+",
+    "o": "Stable",
+    "d": "11 April 2025"
+   },
+   "fitch": {
+    "r": "BBB+",
+    "o": "Stable",
+    "d": "19 September 2025"
+   },
+   "moodys": {
+    "r": "Baa2",
+    "o": "Stable",
+    "d": "21 November 2025"
+   }
+  },
+  "Japan": {
+   "sp": {
+    "r": "A+",
+    "o": "Stable",
+    "d": "16 September 2015"
+   },
+   "fitch": {
+    "r": "A",
+    "o": "Stable",
+    "d": "19 January 2026"
+   },
+   "moodys": {
+    "r": "A1",
+    "o": "Stable",
+    "d": "8 November 2023"
+   }
+  },
+  "Mexico": {
+   "sp": {
+    "r": "BBB",
+    "o": "Stable",
+    "d": "26 March 2020"
+   },
+   "fitch": {
+    "r": "BBB-",
+    "o": "Stable",
+    "d": "16 April 2025"
+   },
+   "moodys": {
+    "r": "Baa2",
+    "o": "Stable",
+    "d": "8 July 2022"
+   }
+  },
+  "Netherlands": {
+   "sp": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "20 November 2015"
+   },
+   "fitch": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "16 January 2026"
+   },
+   "moodys": {
+    "r": "Aaa",
+    "o": "Stable",
+    "d": "27 January 2023"
+   }
+  },
+  "New Zealand": {
+   "sp": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "21 February 2021"
+   },
+   "fitch": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "17 August 2025"
+   },
+   "moodys": {
+    "r": "Aaa",
+    "o": "Stable",
+    "d": "21 April 2022"
+   }
+  },
+  "Nigeria": {
+   "sp": {
+    "r": "B-",
+    "o": "Positive",
+    "d": "26 March 2020"
+   },
+   "fitch": {
+    "r": "B",
+    "o": "Stable",
+    "d": "10 October 2025"
+   },
+   "moodys": {
+    "r": "Caa1",
+    "o": "Positive",
+    "d": "8 December 2023"
+   }
+  },
+  "Portugal": {
+   "sp": {
+    "r": "A+",
+    "o": "Stable",
+    "d": "29 August 2025"
+   },
+   "fitch": {
+    "r": "A",
+    "o": "Stable",
+    "d": "12 September 2025"
+   },
+   "moodys": {
+    "r": "A3",
+    "o": "Stable",
+    "d": "17 November 2023"
+   }
+  },
+  "South Africa": {
+   "sp": {
+    "r": "BB",
+    "o": "Positive",
+    "d": "14 November 2025"
+   },
+   "fitch": {
+    "r": "BB-",
+    "o": "Stable",
+    "d": "15 December 2021"
+   },
+   "moodys": {
+    "r": "Ba2",
+    "o": "Stable",
+    "d": "1 April 2022"
+   }
+  },
+  "South Korea": {
+   "sp": {
+    "r": "AA",
+    "o": "Stable",
+    "d": "8 August 2016"
+   },
+   "fitch": {
+    "r": "AA-",
+    "o": "Stable",
+    "d": "6 September 2012"
+   },
+   "moodys": {
+    "r": "Aa2",
+    "o": "Stable",
+    "d": "21 April 2022"
+   }
+  },
+  "Spain": {
+   "sp": {
+    "r": "A+",
+    "o": "Stable",
+    "d": "12 September 2025"
+   },
+   "fitch": {
+    "r": "A",
+    "o": "Stable",
+    "d": "26 September 2025"
+   },
+   "moodys": {
+    "r": "A3",
+    "o": "Positive",
+    "d": "27 September 2025"
+   }
+  },
+  "Sweden": {
+   "sp": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "16 February 2004"
+   },
+   "fitch": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "8 March 2004"
+   },
+   "moodys": {
+    "r": "Aaa",
+    "o": "Stable",
+    "d": "25 March 2022"
+   }
+  },
+  "Switzerland": {
+   "sp": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "1 October 1988"
+   },
+   "fitch": {
+    "r": "AAA",
+    "o": "Stable",
+    "d": "10 August 1994"
+   },
+   "moodys": {
+    "r": "Aaa",
+    "o": "Stable",
+    "d": "17 February 2023"
+   }
+  },
+  "Thailand": {
+   "sp": {
+    "r": "BBB+",
+    "o": "Stable",
+    "d": "26 August 2004"
+   },
+   "fitch": {
+    "r": "BBB+",
+    "o": "Negative",
+    "d": "24 September 2025"
+   },
+   "moodys": {
+    "r": "Baa1",
+    "o": "Stable",
+    "d": "7 April 2022"
+   }
+  },
+  "Turkey": {
+   "sp": {
+    "r": "BB-",
+    "o": "Stable",
+    "d": "1 November 2024"
+   },
+   "fitch": {
+    "r": "BB-",
+    "o": "Stable",
+    "d": "6 September 2024"
+   },
+   "moodys": {
+    "r": "B1",
+    "o": "Positive",
+    "d": "19 July 2024"
+   }
+  },
+  "United Kingdom": {
+   "sp": {
+    "r": "AA",
+    "o": "Stable",
+    "d": "27 June 2016"
+   },
+   "fitch": {
+    "r": "AA-",
+    "o": "Stable",
+    "d": "22 March 2024"
+   },
+   "moodys": {
+    "r": "Aa3",
+    "o": "Stable",
+    "d": "20 October 2023"
+   }
+  },
+  "United States": {
+   "sp": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "5 August 2011"
+   },
+   "fitch": {
+    "r": "AA+",
+    "o": "Stable",
+    "d": "1 August 2023"
+   },
+   "moodys": {
+    "r": "Aa1",
+    "o": "Stable",
+    "d": "16 May 2025"
+   }
+  }
+ }
+}

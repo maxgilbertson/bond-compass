@@ -1,0 +1,39 @@
+name: Daily yield record
+
+# After the US close each weekday: save every market's closing yields to data/history/,
+# building our own history for maturities CNBC keeps none for, and commit it so the record is permanent.
+on:
+  schedule:
+    - cron: "15 22 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: repo-writes
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python app/snapshot.py
+      - name: Save to the repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/history
+          if git diff --cached --quiet; then echo "Nothing new to save"; exit 0; fi
+          git commit -m "Daily yields $(date -u +%F)"
+          git pull --rebase
+          git push
+      - name: Publish the site with the new record
+        run: gh workflow run deploy.yml
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bond Compass</title>
+<meta name="description" content="Live tracker of the world's government bond markets: yields, curves, carry, credit spreads, central banks and public finances.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bonds">
+<meta name="theme-color" content="#0A0F1C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F2EFE8" media="(prefers-color-scheme: light)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230F1C3F'/%3E%3Cpath d='M7 22c4-8 9-11 18-12' stroke='%23E8B850' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="common.css">
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 22c4-8 9-11 19-12" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="11" cy="16.2" r="1.8" fill="currentColor"/><circle cx="18" cy="11.6" r="1.8" fill="currentColor"/></svg>
+      <h1>Bond <span>Compass</span></h1><span class="eyebrow">World government bonds</span></div>
+    <div class="status"><span class="dot" id="dot"></span><span id="stamp">Loading live yields…</span></div>
+    <button class="btn primary" id="refresh" type="button">Refresh now</button>
+  </div>
+</header>
+<nav class="viewbar" aria-label="Parts of this page"><div class="wrap views" id="views">
+  <button type="button" data-view="overview">Overview</button>
+  <button type="button" data-view="monitor">Monitor</button>
+  <button type="button" data-view="curves">Curves</button>
+  <button type="button" data-view="countries">Countries</button>
+  <button type="button" data-view="credit">Credit &amp; inflation</button>
+  <button type="button" data-view="banks">Central banks</button>
+  <button type="button" data-view="guide">Guide</button>
+</div></nav>
+
+<main class="wrap" id="app"><div class="loading">Fetching live yields, curves, credit spreads and public finances for 33 bond markets…</div></main>
+<div class="tip" id="tip" hidden></div>
+
+<script src="common.js"></script>
+<script>
+"use strict";
+/* ---------------------------------------------------------------- static knowledge */
+const REGIONS = ["Americas","Europe","Asia-Pacific","Middle East & Africa"];
+const BANK = {US:"Federal Reserve",XM:"European Central Bank",GB:"Bank of England",JP:"Bank of Japan",CA:"Bank of Canada",AU:"Reserve Bank of Australia",
+  NZ:"Reserve Bank of New Zealand",CH:"Swiss National Bank",SE:"Riksbank (Sweden)",BR:"Central Bank of Brazil",MX:"Bank of Mexico",CL:"Central Bank of Chile",
+  HU:"National Bank of Hungary",TR:"Central Bank of Turkey",CN:"People's Bank of China",IN:"Reserve Bank of India",ID:"Bank Indonesia",KR:"Bank of Korea",
+  TH:"Bank of Thailand",HK:"Hong Kong Monetary Authority",ZA:"South African Reserve Bank"};
+const BOND_NAME = {US:"Treasuries",GB:"gilts",DE:"Bunds",FR:"OATs",IT:"BTPs",ES:"Bonos",JP:"JGBs",CA:"Canadas",AU:"ACGBs",NZ:"NZGBs",CN:"CGBs",IN:"G-secs",
+  BR:"NTN-Fs",MX:"Mbonos",ZA:"SAGBs",KR:"KTBs",CH:"Confederation bonds",SE:"government bonds",NL:"DSLs",BE:"OLOs",AT:"RAGBs",PT:"OTs",GR:"GGBs",IE:"Irish bonds",
+  FI:"RFGBs",HU:"HGBs",TR:"Turkish bonds",ID:"INDOGBs",TH:"LBs",HK:"HKGBs",EG:"Egyptian bonds",NG:"FGN bonds",CL:"BTPs (Chile)"};
+const CCY_NAME = {USD:"US dollar",CAD:"Canadian dollar",MXN:"Mexican peso",BRL:"Brazilian real",CLP:"Chilean peso",GBP:"pound",EUR:"euro",CHF:"Swiss franc",
+  SEK:"Swedish krona",HUF:"Hungarian forint",TRY:"Turkish lira",JPY:"yen",CNY:"Chinese yuan",HKD:"Hong Kong dollar",INR:"Indian rupee",KRW:"Korean won",
+  AUD:"Australian dollar",NZD:"New Zealand dollar",IDR:"Indonesian rupiah",THB:"Thai baht",ZAR:"South African rand",EGP:"Egyptian pound",NGN:"Nigerian naira"};
+const TENORS = ["3M","6M","1Y","2Y","3Y","5Y","7Y","10Y","15Y","20Y","30Y"];
+
+/* ---------------------------------------------------------------- state */
+const store = makeStore("bc.");
+const S = {data:null, region:store.get("region","all"), q:"", sort:store.get("sort",{k:"score",dir:-1}), cols:store.get("cols","key"),
+  tenor:store.get("tenor","bench"), curveSel:store.get("curveSel",["US","GB","DE","JP"]), curveCmp:store.get("curveCmp",["m1","y1"]),
+  heat:store.get("heat","level"), mapM:store.get("mapM","score"), sx:store.get("sx","safety"), sy:store.get("sy","value"), sgrp:store.get("sgrp","all"),
+  credit:store.get("credit","BAMLH0A0HYM2"), infl:store.get("infl","DFII10"), banks:store.get("banks",["US","XM","GB","JP"]),
+  slopeSort:{k:"s2s10",dir:1}, bankSort:{k:"d1y",dir:-1}, sel:null, dtab:"summary"};
+const rows = () => S.data.rows;
+const byCode = c => rows().find(r=>r.code===c);
+const B = r => r.bonds.find(b=>b.tenor===r.bench);
+const isIG = r => !!(r.rating&&r.rating.ig);
+// the bond at a chosen maturity; if a market doesn't quote it, the nearest one within reason (marked approximate)
+function bondAt(r,t){
+  if(t==="bench") return B(r);
+  const want=tenorYears(t), ok=r.bonds.filter(b=>!b.outlier);
+  const ex=ok.find(b=>b.tenor===t); if(ex) return ex;
+  const near=ok.map(b=>({b,d:Math.abs(Math.log(tenorYears(b.tenor)/want))})).sort((a,b)=>a.d-b.d)[0];
+  return near&&near.d<Math.log(1.6)? {...near.b, approx:true} : null;
+}
+const bondName = r => BOND_NAME[r.code]||"government bonds";
+const ratingTag = r => r.rating? `<span class="rt ${r.rating.ig?"ig":"hy"}" title="${esc(ratingTip(r))}">${esc(r.rating.label)}</span>` : `<span class="rt">NR</span>`;
+function ratingTip(r){ const t=r.rating; if(!t) return "Not rated";
+  return ["sp","moodys","fitch"].filter(k=>t[k]).map(k=>`${{sp:"S&P",moodys:"Moody's",fitch:"Fitch"}[k]} ${t[k].r} (${(t[k].o||"").toLowerCase()||"no outlook"})`).join(" · ")
+    +` → average ${t.label}${t.ig?", investment grade":", below investment grade (high yield)"}`; }
+const mktType = r => r.dm? "Developed" : "Emerging";
+const regionOK = r => S.region==="all" || (S.region==="dm"?r.dm : S.region==="em"?!r.dm : S.region==="euro"?r.euro : S.region==="ig"?isIG(r) : r.region===S.region);
+const tr1 = (r,k,w) => (r.tr&&r.tr[k]&&r.tr[k][w]!=null)? r.tr[k][w] : null;
+const ccyName = c => CCY_NAME[c]||c;
+
+/* ---------------------------------------------------------------- the score's ingredients, in words */
+const PARTS = {
+  realY:{name:"Real yield",group:"Value",val:r=>yld(B(r).realY),
+    tip:"The benchmark yield minus the IMF's average inflation forecast over the bond's life (up to 5 years): roughly what you earn after inflation. Higher ranks higher."},
+  carry:{name:"Cushion against rising yields",group:"Value",val:r=>B(r).breakeven==null?"–":`${Math.round(B(r).breakeven)}bp`,
+    tip:"How far the yield could rise over the next 12 months before this bond does worse than cash at the central bank's rate. It counts the yield plus the 'roll-down' (the price gain as the bond ages along the curve), divided by its duration. Higher ranks higher."},
+  cheap:{name:"Cheap compared with its own past",group:"Value",val:r=>B(r).pct3y==null?"–":`higher than ${B(r).pct3y}% of days`,
+    tip:"Where today's yield sits within its own last 3 years. A yield near the top of its range means the bond is cheap by its own standards. Higher ranks higher."},
+  rating:{name:"Credit rating",group:"Safety",val:r=>r.rating?r.rating.label:"–",
+    tip:"The average of the S&P, Moody's and Fitch ratings, nudged by a third of a notch for a positive or negative outlook. Higher ranks higher."},
+  debt:{name:"Government debt",group:"Safety",val:r=>r.fiscal.debt==null?"–":`${Math.round(r.fiscal.debt)}% of GDP`,
+    tip:"Gross general-government debt as a share of the economy (IMF). Lower ranks higher."},
+  gap:{name:"Budget vs what keeps debt steady",group:"Safety",val:r=>r.fiscal.gap==null?"–":r.fiscal.gap>0?`${r.fiscal.gap.toFixed(1)}% of GDP short`:`${Math.abs(r.fiscal.gap).toFixed(1)}% of GDP spare`,
+    tip:"The budget surplus before interest that would hold debt steady as a share of GDP at today's 10-year borrowing cost and the IMF's growth forecast, minus the one the IMF expects. A positive gap means debt is on course to keep rising. Lower ranks higher."},
+  intRev:{name:"Interest bill",group:"Safety",val:r=>r.fiscal.intRev==null?"–":`${Math.round(r.fiscal.intRev)}% of revenue`,
+    tip:"Net interest paid as a share of all government revenue (IMF). The more of the tax take goes on interest, the less room the government has. Lower ranks higher."},
+};
+
+/* ---------------------------------------------------------------- table columns */
+// k: sort key, l: label, s: small sub-label, g: value getter, f: cell HTML, t: header tooltip
+const C = {
+  score:{l:"Score",s:"0–100",g:r=>r.m.score,f:(v,r)=>`<div class="scorecell"><span class="bar"><i style="width:${v||0}%;background:${scoreColor(v)}"></i></span><b class="num">${v==null?"–":Math.round(v)}</b></div>`,t:"Bond Compass score: value (real yield, cushion, cheapness) 60%, safety (rating, debt, budget gap, interest bill) 40%. See the Guide."},
+  signal:{l:"Signal",g:r=>r.m.score,f:(v,r)=>sigPill(r.m.signal),t:"What the score suggests, from Avoid to Strong overweight."},
+  value:{l:"Value",s:"0–100",g:r=>r.m.value,f:v=>`<span class="num" style="color:${scoreColor(v)}">${v==null?"–":Math.round(v)}</span>`,t:"The value half of the score: real yield, cushion against rising yields, cheapness vs its own past."},
+  safety:{l:"Safety",s:"0–100",g:r=>r.m.safety,f:v=>`<span class="num" style="color:${scoreColor(v)}">${v==null?"–":Math.round(v)}</span>`,t:"The safety half: credit rating, debt, budget gap and interest bill."},
+  y:{l:"Yield",s:"to maturity",g:(r,b)=>b&&b.y,f:(v,r,b)=>`<b class="num">${yld(v,2)}</b>${b&&b.approx?`<small class="muted" title="This market has no ${tenorWord(S.tenor)} bond; showing its ${tenorWord(b.tenor)}"> ${b.tenor}</small>`:""}`,t:"Yield to maturity: the yearly return if you buy today and hold to maturity, with coupons reinvested at the same rate."},
+  chg:{l:"1d",s:"bp",g:(r,b)=>b&&b.chg,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Change in yield since the previous close, in basis points (0.01%). Red = yield up (price down)."},
+  d1w:{l:"1w",s:"bp",g:(r,b)=>b&&b.d1w,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change over a week (bp)."},
+  d1m:{l:"1m",s:"bp",g:(r,b)=>b&&b.d1m,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change over a month (bp)."},
+  d3m:{l:"3m",s:"bp",g:(r,b)=>b&&b.d3m,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change over 3 months (bp)."},
+  ytd:{l:"YTD",s:"bp",g:(r,b)=>b&&b.ytd,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change since 1 January (bp)."},
+  d1y:{l:"1y",s:"bp",g:(r,b)=>b&&b.d1y,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change over a year (bp)."},
+  d3y:{l:"3y",s:"bp",g:(r,b)=>b&&b.d3y,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change over 3 years (bp)."},
+  range:{l:"1-year range",g:(r,b)=>b&&b.hi1y!=null?(b.y-b.lo1y)/((b.hi1y-b.lo1y)||1):null,f:(v,r,b)=>b&&b.hi1y!=null?`<div style="min-width:120px" title="Low ${yld(b.lo1y)} · average ${yld(b.avg1y)} · high ${yld(b.hi1y)}">${rangeBar(b.y,b.lo1y,b.hi1y,b.avg1y)}<small class="num muted">${yld(b.lo1y)} – ${yld(b.hi1y)}</small></div>`:"–",t:"Where today's yield sits between its 1-year low and high (the grey tick is the 1-year average)."},
+  z1y:{l:"Z-score",s:"1 year",g:(r,b)=>b&&b.z1y,f:v=>`<span class="num">${isNum(v)?v.toFixed(1):"–"}</span>`,t:"How many standard deviations today's yield is above (+) or below (−) its 1-year average. Beyond ±2 is unusually stretched."},
+  pct3y:{l:"3y pctile",g:(r,b)=>b&&b.pct3y,f:v=>`<span class="num">${isNum(v)?v+"%":"–"}</span>`,t:"Share of the last 3 years' daily yields that were below today's. 100% = highest yield (cheapest) in 3 years."},
+  coupon:{l:"Coupon",g:(r,b)=>b&&b.coupon,f:v=>`<span class="num">${isNum(v)?v.toFixed(3).replace(/0+$/,"").replace(/\.$/,"")+"%":"–"}</span>`,t:"The bond's fixed yearly interest payment, as a % of face value."},
+  mat:{l:"Maturity",g:(r,b)=>b&&b.mat,f:(v,r,b)=>`<span class="num">${b?isoDate(b.mat):"–"}${b&&b.approxMat?"*":""}</span>`,t:"When the bond repays its face value. * = estimated from the maturity bucket (no specific bond quoted)."},
+  price:{l:"Price",s:"per 100",g:(r,b)=>b&&b.price,f:(v,r,b)=>`<span class="num" title="${b&&b.priceSrc==="quote"?"Quoted price":"Calculated from the yield"}">${num(v,2)}</span>`,t:"Clean price per 100 of face value (quoted where available, otherwise calculated from the yield)."},
+  mod:{l:"Duration",s:"modified",g:(r,b)=>b&&b.mod,f:v=>`<span class="num">${num(v,2)}</span>`,t:"Modified duration: the % change in price for a 1 percentage-point change in yield. A duration of 8 means a 1% rise in yield cuts the price by about 8%."},
+  conv:{l:"Convexity",g:(r,b)=>b&&b.conv,f:v=>`<span class="num">${num(v,1)}</span>`,t:"How duration itself changes as yields move. Higher convexity cushions losses when yields rise and adds to gains when they fall."},
+  dv01:{l:"DV01",s:"per 1m",g:(r,b)=>b&&b.dv01,f:(v,r)=>`<span class="num">${isNum(v)?Math.round(v).toLocaleString():"–"}</span>`,t:"Money gained or lost on 1,000,000 of face value for a 1bp move in yield, in the bond's own currency."},
+  vol:{l:"Volatility",s:"bp a year",g:(r,b)=>b&&b.vol,f:v=>`<span class="num">${isNum(v)?v:"–"}</span>`,t:"How much the yield typically moves in a year (annualised standard deviation of daily changes over the last 3 months), in bp."},
+  cash:{l:"Cash rate",g:r=>r.cash&&r.cash.rate,f:(v,r)=>`<span class="num" title="${r.cash&&r.cash.src==="bill"?`No policy-rate feed: shortest bill yield (${r.cash.tenor})`:"Central bank policy rate"}">${yld(v)}${r.cash&&r.cash.src==="bill"?"*":""}</span>`,t:"The central bank's policy rate: what cash earns. * = shortest bill yield where there's no policy-rate feed."},
+  roll:{l:"Roll-down",s:"bp",g:(r,b)=>b&&b.roll,f:v=>`<span class="num">${bpf(v,true,false)}</span>`,t:"How much lower the yield would be a year from now if the curve stayed put, as the bond becomes a 1-year-shorter bond. Positive = a price gain from ageing."},
+  ret12:{l:"12m return",s:"curve unchanged",g:(r,b)=>b&&b.ret12,f:v=>`<span class="num">${yld(v)}</span>`,t:"Expected return over 12 months in the bond's own currency if yields don't move: the yield plus the roll-down gain."},
+  excess:{l:"Over cash",g:(r,b)=>b&&b.excess,f:v=>`<span class="num ${cls(v)}">${pp(v,2,true)}</span>`,t:"The 12-month return (curve unchanged) minus the cash rate: what you're paid for taking duration risk instead of sitting in cash."},
+  breakeven:{l:"Cushion",s:"bp",g:(r,b)=>b&&b.breakeven,f:v=>`<span class="num ${cls(v)}">${bpf(v,false,false)}</span>`,t:"How far the yield could rise over 12 months before the bond does worse than cash. Bigger = more room for error."},
+  hedgedGbp:{l:"Hedged £",g:(r,b)=>b&&b.hedgedGbp,f:v=>`<b class="num">${yld(v)}</b>`,t:"Yield for a pound-based investor who hedges the currency: the yield plus the UK cash rate minus this country's cash rate. Lets you compare bonds from different countries like for like."},
+  hedgedUsd:{l:"Hedged $",g:(r,b)=>b&&b.hedgedUsd,f:v=>`<span class="num">${yld(v)}</span>`,t:"The same for a US-dollar investor: yield plus the US cash rate minus this country's cash rate."},
+  realY:{l:"Real yield",g:(r,b)=>b&&b.realY,f:v=>`<b class="num ${cls(v)}">${yld(v)}</b>`,t:"Yield minus the IMF's average inflation forecast over the bond's life (up to 5 years): roughly the return after inflation."},
+  infl:{l:"Inflation",s:"IMF, 5y avg",g:r=>r.fiscal.inflFwd,f:v=>`<span class="num">${yld(v,1)}</span>`,t:"The IMF's average consumer-price inflation forecast for the next 5 years."},
+  vsUS:{l:"vs US",s:"bp",g:(r,b)=>b&&b.vsUS,f:v=>`<span class="num">${bpf(v,true,false)}</span>`,t:"Spread over US Treasuries of the same maturity, in bp."},
+  vsDE:{l:"vs Bunds",s:"bp",g:(r,b)=>b&&b.vsDE,f:v=>`<span class="num">${bpf(v,true,false)}</span>`,t:"Spread over German Bunds of the same maturity (the euro area's benchmark), in bp."},
+  vsGB:{l:"vs gilts",s:"bp",g:(r,b)=>b&&b.vsGB,f:v=>`<span class="num">${bpf(v,true,false)}</span>`,t:"Spread over UK gilts of the same maturity, in bp."},
+  s2s10:{l:"2s10s",s:"bp",g:r=>r.slopes.s2s10,f:v=>`<span class="num ${isNum(v)&&v<0?"neg":""}">${bpf(v,true,false)}</span>`,t:"10-year yield minus 2-year yield. Negative = an inverted curve, which has often come before recessions."},
+  s5s30:{l:"5s30s",s:"bp",g:r=>r.slopes.s5s30,f:v=>`<span class="num">${bpf(v,true,false)}</span>`,t:"30-year minus 5-year yield."},
+  expects:{l:"Market expects",g:r=>r.expects,f:v=>expectsText(v,true),t:"2-year yield minus today's cash rate. Well above zero = markets expect rate rises; well below = cuts."},
+  rating:{l:"Rating",g:r=>r.rating?r.rating.score:null,f:(v,r)=>ratingTag(r),t:"Average of S&P, Moody's and Fitch. BBB− or better is investment grade."},
+  debt:{l:"Debt",s:"% GDP",g:r=>r.fiscal.debt,f:v=>`<span class="num">${isNum(v)?Math.round(v):"–"}</span>`,t:"Gross government debt, % of GDP, this year (IMF)."},
+  debt5:{l:"Debt in 5y",s:"% GDP",g:r=>r.fiscal.debtIn5y,f:(v,r)=>`<span class="num">${isNum(v)?Math.round(v):"–"}</span> <small class="num ${isNum(v)&&isNum(r.fiscal.debt)?(v>r.fiscal.debt?"neg":"pos"):""}">${isNum(v)&&isNum(r.fiscal.debt)?sgnN(v-r.fiscal.debt):""}</small>`,t:"Where the IMF expects debt to be in 5 years (and the change from today)."},
+  balance:{l:"Budget",s:"% GDP",g:r=>r.fiscal.balance,f:v=>`<span class="num ${cls(v)}">${pp(v,1,true)}</span>`,t:"Overall budget balance this year, % of GDP (negative = deficit)."},
+  primary:{l:"Primary",s:"% GDP",g:r=>r.fiscal.primary,f:v=>`<span class="num ${cls(v)}">${pp(v,1,true)}</span>`,t:"Budget balance before interest payments, % of GDP."},
+  interest:{l:"Interest",s:"% GDP",g:r=>r.fiscal.interest,f:v=>`<span class="num">${pp(v,1)}</span>`,t:"Net interest paid, % of GDP (primary balance minus overall balance)."},
+  intRev:{l:"Interest",s:"% revenue",g:r=>r.fiscal.intRev,f:v=>`<span class="num ${isNum(v)&&v>=15?"neg":""}">${isNum(v)?Math.round(v)+"%":"–"}</span>`,t:"Net interest as a share of government revenue."},
+  effRate:{l:"Avg cost",s:"of debt",g:r=>r.fiscal.effRate,f:v=>`<span class="num">${yld(v,1)}</span>`,t:"Net interest divided by debt: the average rate the government pays on what it already owes."},
+  refi:{l:"Refi gap",s:"10Y − avg",g:r=>r.fiscal.refi,f:v=>`<span class="num ${isNum(v)&&v>1?"neg":""}">${pp(v,1,true)}</span>`,t:"Today's 10-year yield minus the average cost of existing debt. Positive = the interest bill will keep climbing as old debt is refinanced."},
+  rg:{l:"r − g",g:r=>r.fiscal.rMinusG,f:v=>`<span class="num ${isNum(v)&&v>0?"neg":"pos"}">${pp(v,1,true)}</span>`,t:"10-year yield minus expected nominal GDP growth (IMF, next 5 years). Positive = debt grows faster than the economy unless the government runs a surplus before interest."},
+  gap:{l:"Budget gap",s:"% GDP",g:r=>r.fiscal.gap,f:v=>`<span class="num ${isNum(v)&&v>0.5?"neg":isNum(v)&&v<-0.5?"pos":""}">${pp(v,1,true)}</span>`,t:"Primary surplus needed to hold debt/GDP steady at today's yields, minus the one expected. Positive = debt on course to rise."},
+  growth:{l:"Growth",s:"real, 5y",g:r=>r.fiscal.growthFwd,f:v=>`<span class="num">${yld(v,1)}</span>`,t:"IMF average real GDP growth forecast, next 5 years."},
+  r3m:{l:"3m",s:"local",g:r=>tr1(r,"m3","local"),f:v=>`<span class="num ${cls(v)}">${pct(v,1)}</span>`,t:"Approximate total return of the benchmark bond over 3 months, in its own currency."},
+  rytd:{l:"YTD",s:"local",g:r=>tr1(r,"ytd","local"),f:v=>`<span class="num ${cls(v)}">${pct(v,1)}</span>`,t:"Approximate total return since 1 January, own currency."},
+  r1y:{l:"1y",s:"local",g:r=>tr1(r,"y1","local"),f:v=>`<span class="num ${cls(v)}">${pct(v,1)}</span>`,t:"Approximate total return over a year, own currency (coupon income plus price change)."},
+  fx1y:{l:"Currency",s:"vs £, 1y",g:r=>tr1(r,"y1","fx"),f:v=>`<span class="num ${cls(v)}">${pct(v,1)}</span>`,t:"How much the currency gained (+) or lost (−) against the pound over a year."},
+  r1yGbp:{l:"1y in £",s:"unhedged",g:r=>tr1(r,"y1","gbp"),f:v=>`<b class="num ${cls(v)}">${pct(v,1)}</b>`,t:"Return over a year for a UK investor who didn't hedge the currency."},
+  r1yHdg:{l:"1y in £",s:"hedged",g:r=>tr1(r,"y1","hedged"),f:v=>`<span class="num ${cls(v)}">${pct(v,1)}</span>`,t:"Return over a year for a UK investor who hedged the currency back to pounds (approximate)."},
+  spark:{l:"Past year",g:r=>null,f:(v,r)=>sparkSVG(r.spark),t:"The benchmark yield over the past year. Green = yields fell (prices rose); red = yields rose."},
+};
+const COLSETS = {
+  key:{label:"Key",cols:["score","signal","y","chg","d1m","realY","hedgedGbp","s2s10","rating","debt","spark"]},
+  changes:{label:"Yield moves",cols:["y","chg","d1w","d1m","d3m","ytd","d1y","d3y","range","z1y","pct3y"]},
+  risk:{label:"Bond & risk",cols:["y","coupon","mat","price","mod","conv","dv01","vol","z1y"]},
+  carry:{label:"Carry",cols:["y","cash","roll","ret12","excess","breakeven","hedgedGbp","hedgedUsd","expects"]},
+  spreads:{label:"Spreads & real",cols:["y","vsUS","vsDE","vsGB","realY","infl","rating"]},
+  fiscal:{label:"Public finances",cols:["rating","debt","debt5","balance","primary","interest","intRev","effRate","refi","rg","gap","growth"]},
+  returns:{label:"Returns",cols:["y","r3m","rytd","r1y","fx1y","r1yGbp","r1yHdg"]},
+  score:{label:"Score parts",cols:["score","value","safety","realY","breakeven","pct3y","rating","debt","gap","intRev"]},
+};
+function expectsText(v,short=false){ if(!isNum(v)) return "–";
+  const w = v>=40? "rate rises" : v>=15? "a small rise" : v<=-40? "rate cuts" : v<=-15? "a small cut" : "little change";
+  const tone = v>=15? "neg" : v<=-15? "pos" : "muted";
+  return short? `<span class="num ${tone}" title="2-year yield is ${bpf(v,true)} vs cash">${esc(w)} <small>(${bpf(v,true,false)})</small></span>` : w; }
+
+/* ---------------------------------------------------------------- render */
+function render(){
+  const d=S.data;
+  $("#app").innerHTML = `
+    <div class="view" data-view="overview">${overviewHTML(d)}</div>
+    <div class="view" data-view="monitor">${monitorHTML()}</div>
+    <div class="view" data-view="curves">${curvesHTML()}</div>
+    <div class="view" data-view="countries">${countriesHTML()}</div>
+    <div class="view" data-view="credit">${creditHTML(d)}</div>
+    <div class="view" data-view="banks">${banksHTML()}</div>
+    <div class="view" data-view="guide">${guideHTML(d)}</div>
+    <p class="disclaimer">For research and education only; not investment advice. Yields from CNBC (Tradeweb and other dealer quotes, delayed); history rebuilt from CNBC daily closes;
+      public finances from the IMF World Economic Outlook and Fiscal Monitor; central-bank rates from the Bank for International Settlements; credit spreads, TIPS and breakevens
+      from FRED (ICE BofA indices); credit ratings from Wikipedia's table of S&amp;P, Moody's and Fitch ratings (checked ${esc(d.sources.ratingsChecked||"–")}). Analytics use simplified conventions and settle today.</p>`;
+  restoreOpen();
+  bindControls();
+  bindTips(document);
+  Views.apply();
+}
+
+/* ---------- overview */
+function tile({label,code,val,unit="%",chg,chg2,lab2="1m",spark,hint,open,dp=2,inv=true}){
+  return `<div class="tile${open?" click":""}" ${open?`data-open="${open}" role="button" tabindex="0"`:""}>
+    <div class="lab"><span>${esc(label)}</span>${code?`<small class="num">${esc(code)}</small>`:""}</div>
+    <div class="val">${isNum(val)?val.toFixed(dp):"–"}<small>${unit}</small></div>
+    <div class="chg"><span class="${inv?ycls(chg):cls(chg)}" title="Since the previous close">${bpf(chg)} today</span>${isNum(chg2)?`<span class="${inv?ycls(chg2):cls(chg2)}">${bpf(chg2)} ${lab2}</span>`:""}</div>
+    ${spark?sparkSVG(spark,{w:160,h:30,invert:inv}):""}${hint?`<div class="hint">${hint}</div>`:""}</div>`;
+}
+function spreadSpark(a,b){ if(!a||!b) return null; const n=Math.min(a.length,b.length); return a.slice(-n).map((v,i)=>(v-b.slice(-n)[i])*100); }
+function overviewHTML(d){
+  const g=c=>byCode(c), b=c=>g(c)&&B(g(c));
+  const us=g("US"), de=g("DE"), fr=g("FR"), it=g("IT"), gb=g("GB"), jp=g("JP");
+  const hy=d.credit.find(c=>c.id==="BAMLH0A0HYM2"), ig=d.credit.find(c=>c.id==="BAMLC0A0CM");
+  const sprd=(x,y)=>x&&y? {val:(B(x).y-B(y).y)*100, chg:isNum(B(x).chg)&&isNum(B(y).chg)?B(x).chg-B(y).chg:null, m1:isNum(B(x).d1m)&&isNum(B(y).d1m)?B(x).d1m-B(y).d1m:null, spark:spreadSpark(x.spark,y.spark)} : null;
+  const fd=sprd(fr,de), id=sprd(it,de), u2=us&&us.bonds.find(x=>x.tenor==="2Y");
+  const tiles=[
+    us&&tile({label:"US 10-year Treasury",code:"UST",val:b("US").y,chg:b("US").chg,chg2:b("US").d1m,spark:us.spark,open:"US"}),
+    u2&&tile({label:"US 2-year Treasury",code:"UST",val:u2.y,chg:u2.chg,chg2:u2.d1m,open:"US",hint:"Most sensitive to the Fed's next moves"}),
+    gb&&tile({label:"UK 10-year gilt",code:"UKT",val:b("GB").y,chg:b("GB").chg,chg2:b("GB").d1m,spark:gb.spark,open:"GB"}),
+    de&&tile({label:"German 10-year Bund",code:"DBR",val:b("DE").y,chg:b("DE").chg,chg2:b("DE").d1m,spark:de.spark,open:"DE"}),
+    jp&&tile({label:"Japan 10-year JGB",code:"JGB",val:b("JP").y,chg:b("JP").chg,chg2:b("JP").d1m,spark:jp.spark,open:"JP"}),
+    us&&tile({label:"US curve, 10y minus 2y",code:"2s10s",val:us.slopes.s2s10,unit:"bp",dp:0,chg:isNum(b("US").chg)&&u2&&isNum(u2.chg)?b("US").chg-u2.chg:null,chg2:isNum(us.slopes.s2s10_1m)?us.slopes.s2s10-us.slopes.s2s10_1m:null,inv:false,open:"US",hint:"Below zero = inverted"}),
+    fd&&tile({label:"France minus Germany, 10y",code:"OAT–Bund",val:fd.val,unit:"bp",dp:0,chg:fd.chg,chg2:fd.m1,spark:fd.spark,open:"FR",hint:"Extra yield for French risk"}),
+    id&&tile({label:"Italy minus Germany, 10y",code:"BTP–Bund",val:id.val,unit:"bp",dp:0,chg:id.chg,chg2:id.m1,spark:id.spark,open:"IT",hint:"The euro area's stress gauge"}),
+    d.move&&`<div class="tile click" data-gox="credit" role="button" tabindex="0" onclick="Views.go('credit',true)"><div class="lab"><span>Bond volatility (MOVE)</span><small class="num">ICE BofA</small></div><div class="val">${d.move.last.toFixed(0)}</div>
+      <div class="chg"><span class="${ycls(d.move.d1m)}">${sgnN(d.move.d1m)} 1m</span><span class="muted">1y ${d.move.lo1y.toFixed(0)}–${d.move.hi1y.toFixed(0)}</span></div>${sparkSVG(d.move.series.slice(-53).map(p=>p[1]),{w:160,h:30})}<div class="hint">Calm ≤ 80 · stressed ≥ 120</div></div>`,
+    hy&&`<div class="tile click" role="button" tabindex="0" onclick="Views.go('credit',true)"><div class="lab"><span>US high-yield spread</span><small class="num">OAS</small></div><div class="val">${hy.last.toFixed(0)}<small>bp</small></div>
+      <div class="chg"><span class="${ycls(hy.d1m)}">${bpf(hy.d1m)} 1m</span><span class="muted">IG ${ig?ig.last.toFixed(0):"–"}bp</span></div>${sparkSVG(hy.series.slice(-53).map(p=>p[1]),{w:160,h:30})}<div class="hint">${hy.pct>=50?`Wider than ${hy.pct}%`:`Tighter than ${100-hy.pct}%`} of days in the last ${Math.round((Date.now()/1000-hy.since)/31557600)} years</div></div>`,
+  ].filter(Boolean);
+  const rs=rows();
+  const top=rs.filter(r=>r.m.score!=null).sort((a,b)=>b.m.score-a.m.score).slice(0,5);
+  const real=rs.filter(r=>isIG(r)&&isNum(B(r).realY)).sort((a,b)=>B(b).realY-B(a).realY).slice(0,5);
+  const cush=rs.filter(r=>isIG(r)&&isNum(B(r).breakeven)).sort((a,b)=>B(b).breakeven-B(a).breakeven).slice(0,5);
+  const strain=rs.filter(r=>isNum(r.fiscal.gap)&&r.fiscal.debt>=40).sort((a,b)=>b.fiscal.gap-a.fiscal.gap).slice(0,5);
+  const pick=(r,big,small,sub)=>`<div class="pick" data-open="${r.code}" role="button" tabindex="0">${ring(r.m.score,{size:40,stroke:4})}
+    <div class="pick-main"><div class="pick-name">${esc(r.name)}</div><div class="pick-sub">${esc(sub)}</div></div><div class="pick-big">${big}<small>${small}</small></div></div>`;
+  const sub=r=>`${B(r).tenor} ${yld(B(r).y)} · ${r.rating?r.rating.label:"NR"}`;
+  const moved=rs.filter(r=>isNum(B(r).chg)&&!B(r).stale).sort((a,b)=>B(b).chg-B(a).chg);
+  const movers=moved.length>16? [...moved.slice(0,8),...moved.slice(-8)] : moved;
+  const sigs=rs.map(r=>r.m.signal).filter(Boolean);
+  return `
+  <div class="intro">${icon("info",18)}<div>Live yields, curves and risk numbers for the benchmark government bonds of <b>${rs.length} countries</b>, alongside the public finances behind them.
+    Click any country for its full detail; the <a href="#monitor">Monitor</a> has every number in one sortable table, and the <a href="#guide">Guide</a> explains each term.
+    Yield changes are in basis points (bp, 0.01%); <span class="neg">red</span> means yields rose, which means prices fell.</div></div>
+  <section>${secHead({eyebrow:"Markets now",title:"The bond market at a glance",lead:"The yields most of the world prices from, the spreads that signal stress, and how jumpy the market is. Sparklines show the past year."})}
+    <div class="macro">${tiles.join("")}</div></section>
+  <section>${secHead({eyebrow:"Backdrop",title:"What's driving bonds",lead:"Fixed rules applied to today's numbers. Coloured rules are active now; grey ones are within normal ranges."})}
+    <div class="rulegrid">${d.rules.map(x=>`<div class="card rule ${x.active?x.tone:"off"}"><div class="rule-head"><b>${esc(x.name)}</b>${x.active?tag(x.tone==="pos"?"Supportive":x.tone==="neg"?"Headwind":x.tone==="warn"?"Caution":"Notable",x.tone):tag("Normal")}</div><p>${esc(x.note)}</p></div>`).join("")}</div></section>
+  <section>${secHead({eyebrow:"Shortlists",title:"Where the numbers point",lead:"Four ways to cut the list. Investment grade = rated BBB− or better on average. Click any market for the reasons behind it."})}
+    <div class="picks">
+      <div class="card pickcol"><h3><span class="pc-ico accent">${icon("award",16)}</span>Highest scores</h3><p>Best mix of value and safety.</p>${top.map(r=>pick(r,Math.round(r.m.score),"score",sub(r))).join("")}</div>
+      <div class="card pickcol"><h3><span class="pc-ico pos">${icon("coin",16)}</span>Best real yields</h3><p>Investment grade, after expected inflation.</p>${real.map(r=>pick(r,yld(B(r).realY),"real",sub(r))).join("")}</div>
+      <div class="card pickcol"><h3><span class="pc-ico info">${icon("shield",16)}</span>Most cushion</h3><p>Investment grade: how far yields could rise in a year before cash wins.</p>${cush.map(r=>pick(r,Math.round(B(r).breakeven)+"bp","cushion",sub(r))).join("")}</div>
+      <div class="card pickcol"><h3><span class="pc-ico neg">${icon("alert",16)}</span>Fiscal strain</h3><p>Debt over 40% of GDP and furthest from holding it steady at today's yields.</p>${strain.map(r=>pick(r,pp(r.fiscal.gap,1,true),"of GDP short",`debt ${Math.round(r.fiscal.debt)}% · interest ${isNum(r.fiscal.intRev)?Math.round(r.fiscal.intRev)+"% of revenue":"–"}`)).join("")}</div>
+    </div></section>
+  <section class="two">
+    <div class="card panel">${secHead({eyebrow:"Today",title:"Biggest benchmark yield moves",h:"h3",lead:`The ${movers.length<moved.length?"8 biggest rises and 8 biggest falls":"moves"} in each market's benchmark (mostly 10-year) yield since the previous close. All ${moved.length} are in the <a href="#monitor">Monitor</a>.`})}
+      <div class="bars">${barsSVG(movers.map(r=>({label:r.name,sub:B(r).tenor,v:B(r).chg,key:r.code,color:B(r).chg>=0?"var(--dneg)":"var(--dpos)"})),{fmt:v=>bpf(v),labelW:150,rowH:24})}</div>
+      <p class="note">Blue = yield fell (price rose); red = yield rose (price fell). Some markets quote less often, so their change may be from an earlier session.</p></div>
+    <div class="card panel">${secHead({eyebrow:"Signals",title:`How the ${sigs.length} markets score`,h:"h3",lead:"The score blends value (60%) and safety (40%). See the Guide for the recipe."})}
+      ${sigDist(sigs)}
+      <div style="margin-top:14px" class="scatter" id="ovScatter"></div>
+      <p class="note">Each dot is a market: further right = safer government finances and rating; higher = better value (real yield, cushion, cheapness). Top right is the sweet spot.</p></div>
+  </section>`;
+}
+function vsQuad(X,Y,{L,R,T,B,W,H}){ const cx=X(50), cy=Y(50);
+  return `<rect x="${cx}" y="${T}" width="${W-R-cx}" height="${cy-T}" fill="var(--pos)" fill-opacity=".07"/>
+    <rect x="${L}" y="${cy}" width="${cx-L}" height="${H-B-cy}" fill="var(--neg)" fill-opacity=".07"/>
+    <line x1="${L}" x2="${W-R}" y1="${cy}" y2="${cy}" stroke="var(--line)"/><line x1="${cx}" x2="${cx}" y1="${T}" y2="${H-B}" stroke="var(--line)"/>
+    <text x="${W-R-6}" y="${T+14}" text-anchor="end" font-size="11.5" font-weight="600" fill="var(--pos)">GOOD VALUE, SAFER</text>
+    <text x="${L+6}" y="${T+14}" font-size="11.5" font-weight="600" fill="var(--warn)">GOOD VALUE, RISKIER</text>
+    <text x="${W-R-6}" y="${H-B-8}" text-anchor="end" font-size="11.5" font-weight="600" fill="var(--info)">SAFER, POOR VALUE</text>
+    <text x="${L+6}" y="${H-B-8}" font-size="11.5" font-weight="600" fill="var(--neg)">POOR VALUE, RISKIER</text>`; }
+
+/* ---------- monitor */
+function monitorHTML(){
+  const regs=[["all","All"],["dm","Developed"],["em","Emerging"],["euro","Euro area"],["ig","Investment grade"],...REGIONS.map(x=>[x,x])];
+  return `<section>${secHead({eyebrow:"Monitor",title:"Every market, every number",lead:"Pick a maturity and a set of columns. Click a column to sort, a row for the full detail. Hover a column title for what it means."})}
+    <div class="toolbar"><div class="tabs" id="regionTabs">${regs.map(([k,l])=>`<button class="tab" type="button" data-v="${esc(k)}" aria-pressed="${S.region===k}">${esc(l)}</button>`).join("")}</div>
+      <input class="search" id="q" type="search" placeholder="Find a country…" value="${esc(S.q)}" aria-label="Find a country"></div>
+    <div class="toolbar">${seg("tenorSeg",[["bench","Benchmark"],["2Y","2-year"],["5Y","5-year"],["10Y","10-year"],["30Y","30-year"]],S.tenor,"Maturity")}
+      ${seg("colSeg",Object.entries(COLSETS).map(([k,v])=>[k,v.label]),S.cols,"Columns")}</div>
+    <div class="tablebox tall" id="monTable">${monitorTable()}</div>
+    ${more("monhelp",`<p><b>Benchmark</b> is each market's 10-year bond, or the nearest maturity it quotes. If a market has no bond at the maturity you pick, the nearest one is shown with its maturity beside the yield.</p>
+      <p><b>Colours:</b> for yield changes, <span class="neg">red</span> means the yield rose (bad for holders, as prices fell) and <span class="pos">green</span> means it fell. Returns and balances use green for good and red for bad.</p>
+      <p>Approximate returns rebuild a constant-maturity bond from daily yields (income plus duration × the yield change), so they're close to, but not the same as, an index or fund.</p>`,"Reading the table")}
+  </section>`;
+}
+function monitorTable(){
+  const cols=COLSETS[S.cols].cols, q=S.q.trim().toLowerCase();
+  const list=rows().filter(regionOK).filter(r=>!q||r.name.toLowerCase().includes(q)||r.code.toLowerCase()===q);
+  const bOf=r=>bondAt(r,S.tenor);
+  const sk=S.sort.k, getter=sk==="name"?(r=>r.name):(C[sk]?(r=>C[sk].g(r,bOf(r))):(r=>r.m.score));
+  list.sort((a,b)=>{ const x=getter(a), y=getter(b); if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1;
+    return (typeof x==="string"? x.localeCompare(y) : x-y)*S.sort.dir; });
+  const th=k=>{ const c=C[k]; return `<th data-sort="${k}" title="${esc(c.t||"")}" ${S.sort.k===k?`data-dir="${S.sort.dir>0?"▲":"▼"}"`:""}>${esc(c.l)}${c.s?`<small>${esc(c.s)}</small>`:""}</th>`; };
+  return `<table><thead><tr><th class="rank l">#</th><th class="l sticky" data-sort="name" ${S.sort.k==="name"?`data-dir="${S.sort.dir>0?"▲":"▼"}"`:""}>Country<small>${S.tenor==="bench"?"benchmark bond":tenorWord(S.tenor)+" bond"}</small></th>${cols.map(th).join("")}</tr></thead>
+    <tbody>${list.map((r,i)=>{ const b=bOf(r); return `<tr data-open="${r.code}"><td class="rank l">${i+1}</td>
+      <td class="l sticky"><div class="nmcell"><div><b>${esc(r.name)}</b><small>${esc(r.code)} · ${esc(r.ccy)} · ${b?b.tenor:"–"}${b&&b.stale?" · stale":""}</small></div></div></td>
+      ${cols.map(k=>`<td>${C[k].f(C[k].g(r,b),r,b)}</td>`).join("")}</tr>`; }).join("")}</tbody></table>
+    ${list.length?"":`<p class="muted" style="padding:14px">No markets match.</p>`}`;
+}
+
+/* ---------- curves */
+function curvesHTML(){
+  const opts=rows().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const one=S.curveSel.length===1;
+  return `<section>${secHead({eyebrow:"Curves",title:"Yield curve explorer",lead:"Each line joins a government's yields from short to long maturities. Add up to five countries to compare them; pick a single country to see how its curve has shifted over time."})}
+    <div class="card chartbox"><div class="row">
+      <div class="controls" id="curveChips">${S.curveSel.map((c,i)=>{ const r=byCode(c); return r?`<span class="tag" style="border-color:var(--s${i+1})"><i class="sw" style="background:var(--s${one?1:i+1});margin:0"></i>${esc(r.name)} <button type="button" class="btn" data-rm="${c}" style="padding:0 6px;font-size:12px;border:0" aria-label="Remove ${esc(r.name)}">×</button></span>`:""; }).join("")}
+        ${S.curveSel.length<5?`<select id="curveAdd" aria-label="Add a country"><option value="">+ Add a country…</option>${opts.filter(r=>!S.curveSel.includes(r.code)).map(r=>`<option value="${r.code}">${esc(r.name)}</option>`).join("")}</select>`:""}</div>
+      ${one?`<span style="margin-left:auto" class="controls"><span class="seg-lab">Compare with</span><div class="seg" id="cmpSeg">${[["w1","1 week ago"],["m1","1 month ago"],["m3","3 months ago"],["y1","1 year ago"]].map(([k,l])=>`<button type="button" data-v="${k}" aria-pressed="${S.curveCmp.includes(k)}">${l}</button>`).join("")}</div></span>`:""}
+    </div>
+    <div id="curveChart"></div><div class="legend-row" id="curveLegend"></div>
+    <p class="note">Maturities are spaced on a square-root scale so the short end is readable. Dots are the quoted bonds; lines in between are straight-line estimates.${one?" Past curves use the maturities that have a daily history.":""}</p></div></section>
+  <section>${secHead({eyebrow:"Shape",title:"Curve slopes",lead:"How much extra yield longer bonds pay. Click a column to sort."})}
+    <div class="tablebox" id="slopeTable">${slopeTable()}</div>
+    ${more("slopehelp",`<ul><li><b>3m10y, 2s10s, 5s30s, 10s30s:</b> the long yield minus the short one, in bp. Positive = normal, upward-sloping; negative = inverted.</li>
+      <li><b>Butterfly (2s5s10s):</b> twice the 5-year minus the 2- and 10-year. Positive = the middle of the curve is high (a hump), negative = it sags.</li>
+      <li><b>Steepening</b> (the 2s10s rising) usually comes from long yields rising on inflation or borrowing worries, or short yields falling as rate cuts approach. <b>Flattening</b> is the reverse.</li>
+      <li><b>Market expects:</b> the 2-year yield compared with today's cash rate: what the market thinks the central bank will do over the next couple of years.</li></ul>`,"What the slopes mean")}</section>
+  <section>${secHead({eyebrow:"Matrix",title:"Every yield on one grid",lead:"Rows are countries, columns are maturities. Switch between yield levels and recent changes.",
+      right:`<div class="controls">${seg("heatSeg",[["level","Yield"],["chg","Today"],["d1m","1 month"],["d1y","1 year"],["z","vs 1-year avg"]],S.heat,"Show")}</div>`})}
+    <div class="tablebox" id="heatTable">${heatTable()}</div>
+    <p class="note" id="heatNote">${heatNote()}</p></section>`;
+}
+function slopeTable(){
+  const cols=[["shape","Shape",r=>r.shape,v=>esc(v||"–")],["s3m10","3m10y",r=>r.slopes.s3m10],["s2s10","2s10s",r=>r.slopes.s2s10],
+    ["d2s10","2s10s 1m chg",r=>isNum(r.slopes.s2s10)&&isNum(r.slopes.s2s10_1m)?r.slopes.s2s10-r.slopes.s2s10_1m:null],
+    ["y2s10","2s10s 1y ago",r=>r.slopes.s2s10_1y],["s5s30","5s30s",r=>r.slopes.s5s30],["s10s30","10s30s",r=>r.slopes.s10s30],["fly","Butterfly",r=>r.slopes.fly],
+    ["cash","Cash rate",r=>r.cash&&r.cash.rate,v=>yld(v)],["expects","Market expects",r=>r.expects,v=>expectsText(v,true)]];
+  const fmt=v=>`<span class="num ${isNum(v)&&v<0?"neg":""}">${bpf(v,true,false)}</span>`;
+  const list=rows().slice(), k=S.slopeSort.k, c=cols.find(x=>x[0]===k);
+  list.sort((a,b)=>{ const x=c?c[2](a):a.name, y=c?c[2](b):b.name; if(x==null) return 1; if(y==null) return -1; return (typeof x==="string"?x.localeCompare(y):x-y)*S.slopeSort.dir; });
+  return `<table><thead><tr><th class="l sticky" data-ssort="name">Country</th>${cols.map(([k,l])=>`<th data-ssort="${k}" ${S.slopeSort.k===k?`data-dir="${S.slopeSort.dir>0?"▲":"▼"}"`:""}>${l}${k==="shape"||k==="cash"||k==="expects"?"":"<small>bp</small>"}</th>`).join("")}</tr></thead>
+    <tbody>${list.map(r=>`<tr data-open="${r.code}"><td class="l sticky"><b>${esc(r.name)}</b></td>${cols.map(([k,,g,f])=>`<td>${(f||fmt)(g(r))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+function heatVal(r,t){ const b=r.bonds.find(x=>x.tenor===t&&!x.outlier); if(!b) return null;
+  return S.heat==="level"? b.y : S.heat==="chg"? b.chg : S.heat==="d1m"? b.d1m : S.heat==="d1y"? b.d1y : b.z1y; }
+function heatTable(){
+  const list=rows().slice().sort((a,b)=>REGIONS.indexOf(a.region)-REGIONS.indexOf(b.region)||(b.dm-a.dm)||a.name.localeCompare(b.name));
+  const cell=(r,t)=>{ const v=heatVal(r,t), b=r.bonds.find(x=>x.tenor===t&&!x.outlier); if(v==null) return `<td class="cell empty">${b&&!b.hist&&S.heat!=="level"&&S.heat!=="chg"?"·":""}</td>`;
+    const bg = S.heat==="level"? seqColor(v,0,8) : S.heat==="z"? divColor(v,0,2.5,true) : divColor(v,0,S.heat==="chg"?8:S.heat==="d1m"?40:120,true);
+    const txt = S.heat==="level"? v.toFixed(2) : S.heat==="z"? v.toFixed(1) : sgnN(v);
+    return `<td class="cell" style="background:${bg}" data-tip="${esc(`${r.name} ${tenorWord(t)}: ${yld(b.y)}${S.heat!=="level"?` · ${S.heat==="z"?"z-score "+v.toFixed(2):bpf(v)+" "+({chg:"today",d1m:"over 1 month",d1y:"over 1 year"}[S.heat])}`:""}`)}">${txt}</td>`; };
+  let last="";
+  return `<table class="heat"><thead><tr><th class="l sticky">Country</th>${TENORS.map(t=>`<th>${t}</th>`).join("")}</tr></thead><tbody>${list.map(r=>{
+    const head=r.region!==last?`<tr><td class="l sticky" colspan="${TENORS.length+1}" style="background:var(--surface2);font-family:var(--display);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px;color:var(--muted)">${esc(r.region)}</td></tr>`:""; last=r.region;
+    return head+`<tr data-open="${r.code}"><td class="l sticky"><b>${esc(r.name)}</b></td>${TENORS.map(t=>cell(r,t)).join("")}</tr>`; }).join("")}</tbody></table>`;
+}
+function heatNote(){ return {level:"Darker blue = higher yield (scale tops out at 8%; Turkey, Egypt, Brazil and Nigeria sit far above it).",
+  chg:"Change since the previous close, bp. Blue = yield fell (price up), red = yield rose (price down).",
+  d1m:"Change over one month, bp. Blue = yield fell, red = yield rose. Blank = no daily history for that maturity.",
+  d1y:"Change over one year, bp. Blue = yield fell, red = yield rose.",
+  z:"Standard deviations from the 1-year average. Red = yield unusually high (bond cheap vs its year), blue = unusually low."}[S.heat]; }
+function drawCurves(){
+  const sets=[]; const one=S.curveSel.length===1;
+  if(one){ const r=byCode(S.curveSel[0]); if(r){ sets.push({pts:r.curve.now,color:"var(--s1)",name:"Today",w:2.5,dots:true});
+    [["w1","1 week ago","var(--s5)"],["m1","1 month ago","var(--s2)"],["m3","3 months ago","var(--s4)"],["y1","1 year ago","var(--s3)"]].forEach(([k,l,c])=>{ if(S.curveCmp.includes(k)&&r.curve[k]) sets.push({pts:r.curve[k],color:c,name:l,dash:k==="y1"?"6 4":""}); }); } }
+  else S.curveSel.forEach((c,i)=>{ const r=byCode(c); if(r) sets.push({pts:r.curve.now,color:`var(--s${i+1})`,name:r.name,dots:true}); });
+  curveChart($("#curveChart"),{sets,h:320});
+  $("#curveLegend").innerHTML=sets.map(s=>`<span class="key"><i style="background:${s.color}" class="${s.dash?"dash":""}"></i>${esc(s.name)}</span>`).join("")+
+    (one?(()=>{ const r=byCode(S.curveSel[0]); return r?`<span>Shape: <b>${esc(r.shape||"–")}</b></span><span>2s10s <b>${bpf(r.slopes.s2s10)}</b></span><span>5s30s <b>${bpf(r.slopes.s5s30)}</b></span><span>Market expects <b>${expectsText(r.expects)}</b></span>`:""; })():"");
+}
+
+/* ---------- countries: map, relative value, public finances */
+const MAPM = {
+  score:{l:"Score",g:r=>r.m.score,c:v=>divColor(v,50,45),f:v=>Math.round(v)+" of 100",lo:"5",hi:"95"},
+  y:{l:"Benchmark yield",g:r=>B(r).y,c:v=>seqColor(v,0,10),f:v=>yld(v),lo:"0%",hi:"10%+",seq:true},
+  realY:{l:"Real yield",g:r=>B(r).realY,c:v=>divColor(v,1.5,3),f:v=>yld(v),lo:"−1.5%",hi:"4.5%+"},
+  d1m:{l:"Yield change, 1 month",g:r=>B(r).d1m,c:v=>divColor(v,0,40,true),f:v=>bpf(v),lo:"+40bp (red)",hi:"−40bp (blue)"},
+  debt:{l:"Government debt, % of GDP",g:r=>r.fiscal.debt,c:v=>divColor(v,70,70,true),f:v=>Math.round(v)+"%",lo:"140%+",hi:"0%"},
+  gap:{l:"Budget gap, % of GDP",g:r=>r.fiscal.gap,c:v=>divColor(v,0,4,true),f:v=>pp(v,1,true),lo:"+4 (debt rising)",hi:"−4 (debt falling)"},
+  intRev:{l:"Interest, % of revenue",g:r=>r.fiscal.intRev,c:v=>divColor(v,8,12,true),f:v=>Math.round(v)+"%",lo:"20%+",hi:"0%"},
+  rating:{l:"Credit rating",g:r=>r.rating&&r.rating.avg,c:v=>divColor(v,14,7),f:v=>"",lo:"B",hi:"AAA"},
+};
+const SM = {  // scatter axes
+  safety:{l:"Safety score (0–100)",g:r=>r.m.safety,f:v=>v.toFixed(0)},
+  value:{l:"Value score (0–100)",g:r=>r.m.value,f:v=>v.toFixed(0)},
+  score:{l:"Score (0–100)",g:r=>r.m.score,f:v=>v.toFixed(0)},
+  y:{l:"Benchmark yield (%)",g:r=>B(r).y,f:v=>v.toFixed(1)},
+  realY:{l:"Real yield (%)",g:r=>B(r).realY,f:v=>v.toFixed(1)},
+  hedgedGbp:{l:"Yield hedged into £ (%)",g:r=>B(r).hedgedGbp,f:v=>v.toFixed(1)},
+  breakeven:{l:"Cushion vs cash (bp)",g:r=>B(r).breakeven,f:v=>v.toFixed(0)},
+  vsUS:{l:"Spread over US Treasuries (bp)",g:r=>B(r).vsUS,f:v=>v.toFixed(0)},
+  rating:{l:"Credit rating (21 = AAA, 12 = BBB−)",g:r=>r.rating&&r.rating.avg,f:v=>{ const i=21-Math.round(v); return ["AAA","AA+","AA","AA-","A+","A","A-","BBB+","BBB","BBB-","BB+","BB","BB-","B+","B","B-","CCC+"][i]||""; }},
+  debt:{l:"Government debt (% of GDP)",g:r=>r.fiscal.debt,f:v=>v.toFixed(0)},
+  debtChg:{l:"Change in debt over 5 years, IMF (pts of GDP)",g:r=>isNum(r.fiscal.debtIn5y)&&isNum(r.fiscal.debt)?r.fiscal.debtIn5y-r.fiscal.debt:null,f:v=>v.toFixed(0)},
+  gap:{l:"Budget gap (% of GDP)",g:r=>r.fiscal.gap,f:v=>v.toFixed(1)},
+  intRev:{l:"Interest bill (% of revenue)",g:r=>r.fiscal.intRev,f:v=>v.toFixed(0)},
+  rg:{l:"r − g (%)",g:r=>r.fiscal.rMinusG,f:v=>v.toFixed(1)},
+  infl:{l:"Inflation forecast, 5y avg (%)",g:r=>r.fiscal.inflFwd,f:v=>v.toFixed(1)},
+  d1y:{l:"Yield change over 1 year (bp)",g:r=>B(r).d1y,f:v=>v.toFixed(0)},
+  r1yGbp:{l:"1-year return in £, unhedged (%)",g:r=>{const v=tr1(r,"y1","gbp"); return v==null?null:v*100;},f:v=>v.toFixed(0)},
+};
+const PRESETS = [["safety","value","Value vs safety"],["rating","realY","Rating vs real yield"],["rating","vsUS","Rating vs spread"],["debt","y","Debt vs yield"],
+  ["debt","debtChg","Debt today vs where it's heading"],["infl","y","Inflation vs yield"],["rg","gap","r − g vs budget gap"]];
+function countriesHTML(){
+  return `<section>${secHead({eyebrow:"World map",title:"Bond markets by country",lead:"Colour each country by a number. Click a country for its detail.",
+      right:`<select id="mapSel" aria-label="Colour the map by">${Object.entries(MAPM).map(([k,m])=>`<option value="${k}" ${S.mapM===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>`})}
+    <div class="card mapbox"><div id="map"></div><div class="legend-row" id="mapLegend"></div></div></section>
+  <section>${secHead({eyebrow:"Relative value",title:"Who pays enough for the risk?",lead:"Plot any two numbers against each other. The dashed line is the best fit across the markets shown: markets above it have a higher value on the up-axis than their peers with a similar value along the bottom."})}
+    <div class="card chartbox"><div class="row" style="gap:8px 14px">
+      <div class="controls">${PRESETS.map(([x,y,l])=>`<button type="button" class="tab" data-preset="${x},${y}" aria-pressed="${S.sx===x&&S.sy===y}">${esc(l)}</button>`).join("")}</div></div>
+      <div class="row"><span class="seg-lab">Across</span><select id="sxSel" aria-label="Horizontal axis">${Object.entries(SM).map(([k,m])=>`<option value="${k}" ${S.sx===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>
+        <span class="seg-lab">Up</span><select id="sySel" aria-label="Vertical axis">${Object.entries(SM).map(([k,m])=>`<option value="${k}" ${S.sy===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>
+        ${seg("sgrpSeg",[["all","All"],["dm","Developed"],["em","Emerging"],["ig","Investment grade"]],S.sgrp,"Markets")}</div>
+      <div class="two wide" style="align-items:start"><div class="scatter" id="scatter"></div><div id="resid"></div></div></div></section>
+  <section class="two">
+    <div class="card panel">${secHead({eyebrow:"IMF forecast",title:"Where debt is heading",h:"h3",lead:"Change in government debt over the next 5 years, % of GDP. Red = rising."})}
+      <div class="bars">${barsSVG(rows().filter(r=>isNum(r.fiscal.debtIn5y)&&isNum(r.fiscal.debt)).sort((a,b)=>(b.fiscal.debtIn5y-b.fiscal.debt)-(a.fiscal.debtIn5y-a.fiscal.debt))
+        .map(r=>({label:r.name,sub:Math.round(r.fiscal.debt)+"% →",v:r.fiscal.debtIn5y-r.fiscal.debt,key:r.code,color:r.fiscal.debtIn5y>r.fiscal.debt?"var(--dneg)":"var(--dpos)"})),{fmt:v=>(v>0?"+":"")+v.toFixed(0)+" pts"})}</div></div>
+    <div class="card panel">${secHead({eyebrow:"Interest burden",title:"Share of revenue spent on interest",h:"h3",lead:"Net interest paid as a share of all government revenue this year (IMF). Over 15% is a warning sign; over 30% is severe."})}
+      <div class="bars">${barsSVG(rows().filter(r=>isNum(r.fiscal.intRev)).sort((a,b)=>b.fiscal.intRev-a.fiscal.intRev)
+        .map(r=>({label:r.name,sub:r.rating?r.rating.label:"",v:r.fiscal.intRev,key:r.code,color:r.fiscal.intRev>=30?"var(--dneg)":r.fiscal.intRev>=15?"color-mix(in oklab,var(--dneg) 60%,var(--dmid))":"var(--s1)"})),{fmt:v=>v.toFixed(0)+"%"})}</div></div>
+  </section>
+  <section>${secHead({eyebrow:"Debt arithmetic",title:"Can each government keep its debt steady?",lead:"The key sum for a bond investor: if the interest rate on new debt (r) is above the economy's nominal growth (g), debt keeps rising as a share of GDP unless the government runs a surplus before interest."})}
+    <div class="tablebox">${fiscalTable()}</div>
+    ${more("rghelp",`<p><b>Needed primary balance</b> = (r − g) ÷ (1 + g) × debt. It's the surplus before interest that would hold debt steady as a share of the economy, using today's 10-year yield as r and the IMF's average nominal growth forecast (real growth plus inflation, next 5 years) as g.</p>
+      <p><b>Budget gap</b> = needed minus the primary balance the IMF expects this year. Positive = debt on course to keep rising at today's yields. It's a rough guide: governments borrow at many maturities, and the average cost of existing debt (<b>Avg cost</b>) is usually below today's yields, so the full effect arrives slowly as debt is refinanced (<b>Refi gap</b>).</p>`,"How the sums work")}</section>`;
+}
+function fiscalTable(){
+  const cols=["rating","debt","debt5","balance","primary","interest","intRev","effRate","refi","rg","gap","growth"];
+  const list=rows().slice().sort((a,b)=>(b.fiscal.gap??-99)-(a.fiscal.gap??-99));
+  return `<table><thead><tr><th class="l sticky">Country</th><th title="Benchmark yield">Yield</th>${cols.map(k=>`<th title="${esc(C[k].t)}">${esc(C[k].l)}${C[k].s?`<small>${esc(C[k].s)}</small>`:""}</th>`).join("")}<th title="Primary balance needed to hold debt/GDP steady at today's yields">Needed<small>primary</small></th></tr></thead>
+    <tbody>${list.map(r=>{ const b=B(r); return `<tr data-open="${r.code}"><td class="l sticky"><b>${esc(r.name)}</b></td><td><span class="num">${yld(b.y)}</span></td>${cols.map(k=>`<td>${C[k].f(C[k].g(r,b),r,b)}</td>`).join("")}<td><span class="num">${pp(r.fiscal.pbNeeded,1,true)}</span></td></tr>`; }).join("")}</tbody></table>`;
+}
+let TOPO=null;
+async function drawMap(){
+  const el=$("#map"), M=MAPM[S.mapM]; if(!el) return;
+  if(!window.d3||!d3.geoNaturalEarth1||!window.topojson){ el.innerHTML='<p class="muted">The map library could not load. Everything else still works.</p>'; return; }
+  try{ if(!TOPO) TOPO=await (await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json")).json(); }
+  catch(e){ el.innerHTML='<p class="muted">The map outline could not load. Everything else still works.</p>'; return; }
+  const W=Math.max(300,el.clientWidth||800), H=Math.round(W*0.48);
+  const feats=topojson.feature(TOPO,TOPO.objects.countries).features.filter(f=>f.id!=="010");
+  const proj=d3.geoNaturalEarth1().fitSize([W,H],{type:"FeatureCollection",features:feats}), path=d3.geoPath(proj);
+  const byIso=Object.fromEntries(rows().map(r=>[r.iso,r])), drawn=new Set();
+  const tipFor=r=>{ const v=M.g(r); return `<b>${esc(r.name)}</b><br>${esc(M.l)}: ${v==null?"–":esc(S.mapM==="rating"?(r.rating?r.rating.label:"NR"):M.f(v))}<br>${esc(B(r).tenor)} yield ${esc(yld(B(r).y))} · score ${r.m.score==null?"–":Math.round(r.m.score)}`; };
+  let s=feats.map(f=>{ const r=byIso[f.id]; if(r) drawn.add(r.iso);
+    return r? `<path class="land on" d="${path(f)}" style="fill:${M.c(M.g(r))}" data-open="${r.code}" data-tip="${esc(tipFor(r))}"></path>` : `<path class="off" d="${path(f)}"></path>`; }).join("");
+  rows().filter(r=>!drawn.has(r.iso)).forEach(r=>{ const [x,y]=proj(r.ll);
+    s+=`<circle class="land on" cx="${x}" cy="${y}" r="${Math.max(4,W/170)}" style="fill:${M.c(M.g(r))};stroke:var(--ink);stroke-width:.8" data-open="${r.code}" data-tip="${esc(tipFor(r))}"></circle>`; });
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="World map coloured by ${esc(M.l)}">${s}</svg>`;
+  bindTips(el);
+  const grad=M.seq?`linear-gradient(90deg,${seqColor(0,0,1)},${seqColor(1,0,1)})`:`linear-gradient(90deg,var(--dneg),var(--dmid),var(--dpos))`;
+  $("#mapLegend").innerHTML=`<span class="muted">${esc(M.lo)}</span><span class="legendbar" style="background:${grad}"></span><span class="muted">${esc(M.hi)}</span><span class="muted" style="margin-left:8px">${esc(M.l)} · faint outline = not tracked</span>`;
+}
+function drawScatter(){
+  const X=SM[S.sx], Y=SM[S.sy]; if(!X||!Y) return;
+  const list=rows().filter(r=>S.sgrp==="all"||(S.sgrp==="dm"?r.dm:S.sgrp==="em"?!r.dm:isIG(r)));
+  const pts=list.map(r=>({x:X.g(r),y:Y.g(r),label:r.code,key:r.code,color:r.dm?"var(--s1)":"var(--s2)",
+    tip:`<b>${esc(r.name)}</b><br>${esc(X.l)}: ${isNum(X.g(r))?esc(X.f(X.g(r))):"–"}<br>${esc(Y.l)}: ${isNum(Y.g(r))?esc(Y.f(Y.g(r))):"–"}`}));
+  const isVS=S.sx==="safety"&&S.sy==="value";
+  const fit=scatterChart($("#scatter"),{pts,xlab:X.l,ylab:Y.l,xfmt:X.f,yfmt:Y.f,fit:!isVS,quad:isVS?vsQuad:null,zeroY:["gap","rg","debtChg","d1y","r1yGbp","realY"].includes(S.sy)});
+  const ok=pts.filter(p=>isNum(p.x)&&isNum(p.y));
+  if(fit&&ok.length>3){ const res=ok.map(p=>({p,r:p.y-(fit.a+fit.b*p.x)})).sort((a,b)=>b.r-a.r);
+    const li=a=>a.map(({p,r})=>{ const m=byCode(p.key); return `<div class="pick" data-open="${p.key}" role="button" tabindex="0" style="grid-template-columns:minmax(0,1fr) auto"><div class="pick-main"><div class="pick-name">${esc(m.name)}</div><div class="pick-sub">${esc(Y.f(p.y))} vs ${esc(Y.f(fit.a+fit.b*p.x))} for its peers</div></div><div class="pick-big">${r>0?"+":""}${esc(Y.f(r))}</div></div>`; }).join("");
+    $("#resid").innerHTML=`<div class="eyebrow" style="margin:6px 0">Furthest above the line</div><div style="display:grid;gap:6px">${li(res.slice(0,4))}</div>
+      <div class="eyebrow" style="margin:14px 0 6px">Furthest below the line</div><div style="display:grid;gap:6px">${li(res.slice(-4).reverse())}</div>
+      <p class="note">Fit explains ${Math.round(fit.r2*100)}% of the spread (R²). ${S.sx==="rating"&&["realY","vsUS","y"].includes(S.sy)?"Above the line = pays more than its rating suggests (cheap, or the market sees risk the agencies don't); below = rich for its rating.":"The further from the line, the more unusual the market."}</p>
+      <div class="legend-row"><span class="key dotk"><i style="background:var(--s1)"></i>Developed</span><span class="key dotk"><i style="background:var(--s2)"></i>Emerging</span></div>`;
+  } else $("#resid").innerHTML=`<p class="note">Top right = good value from a safer government. Value = real yield, cushion against rising yields and cheapness vs its own past; safety = rating, debt, budget gap and interest bill.</p>
+      <div class="legend-row"><span class="key dotk"><i style="background:var(--s1)"></i>Developed</span><span class="key dotk"><i style="background:var(--s2)"></i>Emerging</span></div>`;
+}
+
+/* ---------- credit & inflation */
+function creditTile(c,{hint=""}={}){ if(!c) return "";
+  const unit=c.kind==="spread"?"bp":"%", v=c.kind==="spread"?c.last.toFixed(0):c.last.toFixed(2);
+  return `<div class="tile"><div class="lab"><span>${esc(c.label)}</span><small class="num">${c.kind==="spread"?"OAS":""}</small></div><div class="val">${v}<small>${unit}</small></div>
+    <div class="chg"><span class="${ycls(c.d1w)}">${bpf(c.d1w)} 1w</span><span class="${ycls(c.d1m)}">${bpf(c.d1m)} 1m</span><span class="${ycls(c.d1y)}">${bpf(c.d1y)} 1y</span></div>
+    ${rangeBar(c.last,c.lo,c.hi,c.avg)}<div class="hint">${c.kind==="spread"?(c.pct<=20?"Tight: ":c.pct>=80?"Wide: ":"")+`higher than ${c.pct}% of days`:`higher than ${c.pct}% of days`} since ${new Date(c.since*1000).getUTCFullYear()} · range ${c.kind==="spread"?c.lo.toFixed(0)+"–"+c.hi.toFixed(0)+"bp":c.lo.toFixed(2)+"–"+c.hi.toFixed(2)+"%"}${hint?" · "+hint:""}</div></div>`; }
+function creditHTML(d){
+  const cr=id=>d.credit.find(c=>c.id===id);
+  const ladder=d.credit.filter(c=>c.group==="ladder"), mx=Math.max(...ladder.map(c=>c.last));
+  const ust=byCode("US"), u10=ust&&B(ust);
+  const spreadOpts=d.credit.filter(c=>c.kind==="spread"), inflOpts=d.credit.filter(c=>c.group==="real"||c.group==="infl");
+  return `<section>${secHead({eyebrow:"Corporate credit",title:"What companies pay over governments",lead:"Option-adjusted spreads (OAS) of ICE BofA corporate bond indices: the extra yield over government bonds that investors demand for default risk. FRED keeps the last 3 years of these."})}
+    <div class="macro">${[cr("BAMLC0A0CM"),cr("BAMLC0A4CBBB"),cr("BAMLH0A0HYM2"),cr("BAMLHE00EHYIOAS"),cr("BAMLEMHBHYCRPIOAS")].map(c=>creditTile(c)).join("")}</div></section>
+  <section class="two">
+    <div class="card panel">${secHead({eyebrow:"Ratings ladder",title:"Spread by credit rating",h:"h3",lead:"US corporate bonds: each step down the rating scale, and how today compares with the last 3 years."})}
+      <div class="ladder">${ladder.map(c=>`<div class="lrow" title="${esc(`${c.label}: ${c.last.toFixed(0)}bp; 3-year range ${c.lo.toFixed(0)}–${c.hi.toFixed(0)}bp, average ${c.avg.toFixed(0)}bp`)}"><span>${esc(c.label)}</span><div class="lbar" style="width:${Math.max(2,Math.sqrt(c.last/mx)*100)}%;background:${c.label.startsWith("B")&&c.label!=="BBB"||c.label.startsWith("C")?"var(--s2)":"var(--s1)"}"></div><span class="lv">${c.last.toFixed(0)}bp</span><span class="lp">wider than ${c.pct}%</span></div>`).join("")}</div>
+      <p class="note">Bar length on a square-root scale so the high-yield end fits. Blue = investment grade, orange = high yield. "Wider than" = share of days in the last 3 years with a smaller spread.</p></div>
+    <div class="card panel">${secHead({eyebrow:"All-in yields",title:"Corporate yields vs Treasuries",h:"h3",lead:"Effective yield of each index (what a buyer earns today), next to the US 10-year Treasury."})}
+      <div class="macro c2">${[["10Y","US 10-year Treasury"],["30Y","US 30-year Treasury"]].map(([t,l])=>{ const b=ust&&ust.bonds.find(x=>x.tenor===t); return b?`<div class="tile click" data-open="US" role="button" tabindex="0"><div class="lab"><span>${l}</span><small class="num">UST</small></div><div class="val">${b.y.toFixed(2)}<small>%</small></div><div class="chg"><span class="${ycls(b.chg)}">${bpf(b.chg)} 1d</span><span class="${ycls(b.d1m)}">${bpf(b.d1m)} 1m</span><span class="${ycls(b.d1y)}">${bpf(b.d1y)} 1y</span></div>${rangeBar(b.y,b.lo1y,b.hi1y,b.avg1y)}<div class="hint">1-year range ${yld(b.lo1y)}–${yld(b.hi1y)}</div></div>`:""; }).join("")}
+        ${d.credit.filter(c=>c.group==="yield").map(c=>creditTile(c)).join("")}</div></div>
+  </section>
+  <section><div class="card chartbox"><div class="row"><span class="eyebrow">Spread history</span><select id="creditSel" aria-label="Spread to chart">${spreadOpts.map(c=>`<option value="${c.id}" ${S.credit===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}</select>
+      <span class="muted" style="font-size:12.5px" id="creditTxt"></span></div><div id="creditChart"></div></div></section>
+  <section>${secHead({eyebrow:"Inflation",title:"Real yields and inflation expectations",lead:"US inflation-protected Treasuries (TIPS) pay a 'real' yield on top of inflation. The gap between ordinary and inflation-protected yields (the breakeven) is the inflation rate the market expects."})}
+    <div class="macro c3">${inflOpts.map(c=>creditTile(c)).join("")}</div>
+    <div class="card chartbox" style="margin-top:14px"><div class="row"><span class="eyebrow">History</span><select id="inflSel" aria-label="Series to chart">${inflOpts.map(c=>`<option value="${c.id}" ${S.infl===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}${d.move?`<option value="MOVE" ${S.infl==="MOVE"?"selected":""}>MOVE index (bond volatility)</option>`:""}</select></div><div id="inflChart"></div></div>
+    ${more("inflhelp",`<ul><li><b>Real yield</b> (TIPS): the return above inflation if held to maturity. Positive and high real yields make bonds attractive in their own right; they also weigh on gold, growth shares and property.</li>
+      <li><b>Breakeven inflation</b>: ordinary Treasury yield minus the TIPS yield. If inflation averages more than this, TIPS do better; less, ordinary Treasuries do better.</li>
+      <li><b>5-year, 5-year forward</b>: the inflation rate the market expects for the five years that start five years from now. Central banks watch it to see if long-run expectations are drifting away from the 2% target.</li></ul>`,"What these mean")}</section>`;
+}
+function drawCredit(){
+  const d=S.data, c=d.credit.find(x=>x.id===S.credit)||d.credit.find(x=>x.kind==="spread"); if(!c) return;
+  lineChart($("#creditChart"),{t:c.series.map(p=>p[0]),series:[{v:c.series.map(p=>p[1]),color:"var(--s1)",name:c.label,w:2}],h:240,fmt:v=>v.toFixed(0)+"bp",baseline:c.avg,baselineLabel:`3-year average ${c.avg.toFixed(0)}bp`,area:1});
+  $("#creditTxt").textContent=`Now ${c.last.toFixed(0)}bp · low ${c.lo.toFixed(0)} · high ${c.hi.toFixed(0)} · as of ${dateStr(c.asOf)}`;
+  let t,v,name,fmt=x=>x.toFixed(2)+"%", base=null;
+  if(S.infl==="MOVE"&&d.move){ t=d.move.series.map(p=>p[0]); v=d.move.series.map(p=>p[1]); name="MOVE"; fmt=x=>x.toFixed(0); base=null; }
+  else { const s=d.credit.find(x=>x.id===S.infl)||d.credit.find(x=>x.group==="real"); t=s.series.map(p=>p[0]); v=s.series.map(p=>p[1]); name=s.label; base=s.group==="infl"?2:0; }
+  lineChart($("#inflChart"),{t,series:[{v,color:"var(--s3)",name,w:2}],h:220,fmt,baseline:base,baselineLabel:base===2?"2% inflation target":base===0?"zero":"",area:1});
+}
+
+/* ---------- central banks */
+function bankRows(){
+  const seen=new Map();
+  rows().forEach(r=>{ if(!r.policy) return; const k=r.policy.bank; if(seen.has(k)) return;
+    const ref = k==="XM"? byCode("DE") : r;  // the ECB's market read comes from German yields
+    const two = ref.bonds.find(b=>b.tenor==="2Y"&&!b.outlier);
+    seen.set(k,{bank:k,name:BANK[k]||r.name,area:k==="XM"?"Euro area":r.name,code:ref.code,p:r.policy,infl:r.fiscal.inflNext,ten:B(ref),two,expects:ref.expects}); });
+  return [...seen.values()];
+}
+function banksHTML(){
+  const list=bankRows(), k=S.bankSort.k;
+  const g={name:x=>x.name,rate:x=>x.p.rate,last:x=>x.p.last?x.p.last.t:0,d1y:x=>x.p.d1y,m3:x=>x.p.moves3m,real:x=>isNum(x.infl)?x.p.rate-x.infl:null,two:x=>x.two&&x.two.y,expects:x=>x.expects,ten:x=>x.ten&&x.ten.y};
+  list.sort((a,b)=>{ const x=g[k](a), y=g[k](b); if(x==null) return 1; if(y==null) return -1; return (typeof x==="string"?x.localeCompare(y):x-y)*S.bankSort.dir; });
+  const hikes=list.filter(x=>x.p.moves3m>0).length, cuts=list.filter(x=>x.p.moves3m<0).length;
+  const th=(key,l,s="",t="")=>`<th data-bsort="${key}" title="${esc(t)}" ${S.bankSort.k===key?`data-dir="${S.bankSort.dir>0?"▲":"▼"}"`:""} class="${key==="name"?"l sticky":""}">${l}${s?`<small>${s}</small>`:""}</th>`;
+  return `<section>${secHead({eyebrow:"Central banks",title:"Policy rates and what markets expect",lead:`Short-term bond yields follow central banks. In the past 3 months <b>${hikes}</b> of these ${list.length} central banks raised rates and <b>${cuts}</b> cut them.`})}
+    <div class="tablebox"><table><thead><tr>${th("name","Central bank")}${th("rate","Rate","%","Policy rate today (BIS)")}${th("last","Last move","","Date and size of the last change")}${th("d1y","1y change","bp")}${th("m3","Last 3 months","bp")}
+      ${th("real","Real rate","vs inflation","Policy rate minus the IMF's inflation forecast for next year: positive = restrictive")}${th("two","2-year","yield")}${th("expects","Market expects","2y − rate","2-year yield minus the policy rate")}${th("ten","10-year","yield")}</tr></thead>
+    <tbody>${list.map(x=>{ const real=isNum(x.infl)?x.p.rate-x.infl:null, L=x.p.last;
+      return `<tr data-open="${x.code}"><td class="l sticky"><div class="nmcell"><div><b>${esc(x.name)}</b><small>${esc(x.area)}</small></div></div></td><td><b class="num">${yld(x.p.rate)}</b></td>
+      <td><span class="num">${L?`${dateStr(L.t)} <span class="${L.to>L.from?"neg":"pos"}">${bpf((L.to-L.from)*100)}</span>`:"no change in 2 years"}</span></td>
+      <td><span class="num ${ycls(x.p.d1y)}">${bpf(x.p.d1y,true,false)}</span></td><td><span class="num ${ycls(x.p.moves3m)}">${x.p.moves3m?bpf(x.p.moves3m,true,false):"–"}</span></td>
+      <td><span class="num ${cls(real)}">${pp(real,1,true)}</span></td><td><span class="num">${x.two?yld(x.two.y):"–"}</span></td><td>${expectsText(x.expects,true)}</td><td><span class="num">${x.ten?yld(x.ten.y):"–"}</span></td></tr>`; }).join("")}</tbody></table></div>
+    <p class="note">Egypt and Nigeria have no policy-rate feed here; their cash rate uses the shortest Treasury-bill yield. Rates as published by the Bank for International Settlements (usually a few days behind).</p></section>
+  <section><div class="card chartbox"><div class="row"><span class="eyebrow">Policy rates, past 2 years</span>
+      <div class="controls" id="bankChips">${list.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<button type="button" class="tab" data-bank="${x.bank}" aria-pressed="${S.banks.includes(x.bank)}">${esc(x.bank==="XM"?"ECB":x.area)}</button>`).join("")}</div></div>
+    <div id="bankChart"></div><div class="legend-row" id="bankLegend"></div><p class="note">Pick up to five. Very high-rate countries (Turkey, Brazil) squash the others; leave them out to compare the rest.</p></div></section>`;
+}
+function align(seriesList){  // a shared date grid, carrying each series' last value forward over short gaps
+  const ts=[...new Set(seriesList.flatMap(s=>s.map(p=>p[0])))].sort((a,b)=>a-b);
+  return {t:ts, v:seriesList.map(s=>{ const m=new Map(s.map(p=>[p[0],p[1]])); let last=null, lastT=null;
+    return ts.map(t=>{ if(m.has(t)){ last=m.get(t); lastT=t; return last; } return last!=null&&t-lastT<12*86400? last : null; }); })};
+}
+function drawBanks(){
+  const list=bankRows().filter(x=>S.banks.includes(x.bank)).slice(0,5);
+  if(!list.length){ $("#bankChart").innerHTML='<p class="muted">Pick a central bank above.</p>'; $("#bankLegend").innerHTML=""; return; }
+  const A=align(list.map(x=>x.p.series));
+  lineChart($("#bankChart"),{t:A.t,series:list.map((x,i)=>({v:A.v[i],color:`var(--s${i+1})`,name:x.bank==="XM"?"ECB":x.area,w:2})),h:260,fmt:v=>v.toFixed(2)+"%"});
+  $("#bankLegend").innerHTML=list.map((x,i)=>`<span class="key"><i style="background:var(--s${i+1})"></i>${esc(x.name)} ${yld(x.p.rate)}</span>`).join("");
+}
+
+/* ---------- guide */
+function guideHTML(d){
+  const w=d.weights;
+  return `<section>${secHead({eyebrow:"Guide",title:"How to use Bond Compass",lead:"What each number means, how the score works and where the data comes from."})}
+  <div class="acc">
+    ${fold("g-start","Start here <small>a five-minute routine</small>",`<ol style="margin:0;padding-left:20px;display:grid;gap:6px">
+      <li><b>Overview:</b> check the backdrop rules: are yields rising or falling, are central banks hiking or cutting, is credit calm?</li>
+      <li><b>Monitor:</b> sort by <i>Score</i>, then switch the columns to <i>Carry</i> and <i>Spreads &amp; real</i> to see why the leaders lead.</li>
+      <li><b>Curves:</b> decide <i>where</i> on the curve to own. A steep curve pays you to go longer (roll-down); an inverted one pays you to stay short.</li>
+      <li><b>Countries:</b> the relative-value chart shows who pays enough for their rating; the debt arithmetic shows whose finances are drifting.</li>
+      <li><b>Click a country</b> for every maturity's numbers, the history and the public finances behind it.</li></ol>`,true)}
+    ${fold("g-terms","Bond terms <small>yield, duration, DV01, carry…</small>",`<div class="glossary">
+      <div><b>Yield to maturity (YTM):</b> the yearly return if you buy today and hold to the end, with coupons reinvested at the same rate. Yields and prices move in opposite directions.</div>
+      <div><b>Basis point (bp):</b> 0.01 percentage points. A yield going from 4.00% to 4.25% is up 25bp.</div>
+      <div><b>Coupon:</b> the fixed interest a bond pays each year, as a % of its face value (usually 100).</div>
+      <div><b>Clean price:</b> the quoted price per 100 of face value, excluding interest built up since the last coupon (accrued interest).</div>
+      <div><b>Modified duration:</b> the % price change for a 1-percentage-point move in yield. Duration 8 → a 1% rise in yield loses about 8%.</div>
+      <div><b>Macaulay duration:</b> the average time (in years) until you get your money back, weighted by each payment's present value.</div>
+      <div><b>Convexity:</b> how much duration changes as yields move. It makes price gains from falling yields bigger than losses from rising ones.</div>
+      <div><b>DV01:</b> the money made or lost on 1,000,000 of face value for each 1bp move in yield. Traders size positions with it.</div>
+      <div><b>Roll-down:</b> on an upward-sloping curve a bond's yield falls as it gets closer to maturity, which lifts its price even if the curve doesn't move.</div>
+      <div><b>Carry:</b> what you earn for holding a bond instead of cash: its yield (plus roll-down) minus the cash rate.</div>
+      <div><b>Cushion (breakeven):</b> how far yields could rise over a year before carry and roll-down are wiped out and cash would have done better.</div>
+      <div><b>Hedged yield:</b> a foreign bond's yield after swapping the currency back to pounds (or dollars) with forward contracts. The hedge costs or earns the gap between the two countries' short-term rates, so a high-yield country's bond often hedges back to a much lower yield.</div>
+      <div><b>Real yield:</b> yield minus expected inflation. The return that actually grows your spending power.</div>
+      <div><b>Spread:</b> the extra yield one bond pays over another, e.g. Italy over Germany. A widening spread signals rising worry.</div>
+      <div><b>OAS:</b> option-adjusted spread: a corporate bond's extra yield over government bonds, adjusted for features like early repayment.</div>
+      <div><b>Z-score:</b> how unusual today's yield is compared with its past year, in standard deviations.</div>
+      <div><b>Yield curve, 2s10s:</b> yields across maturities; the 10-year minus the 2-year. Inverted (negative) curves have often come before recessions.</div>
+      <div><b>Investment grade:</b> rated BBB− (S&amp;P/Fitch) or Baa3 (Moody's) or better. Below that is "high yield" (or "junk").</div>
+      <div><b>r − g:</b> interest rate minus nominal growth. When r is above g, debt grows faster than the economy unless the government runs a surplus before interest.</div>
+      <div><b>MOVE index:</b> the bond market's "fear gauge": expected volatility of US Treasury yields over the next month.</div></div>`)}
+    ${fold("g-score","How the score works <small>value 60%, safety 40%</small>",`<p>Each market's benchmark bond (10-year where available) is ranked against all the others on seven numbers. Each rank runs from 0 (worst) to 100 (best); the score is their weighted average, so it is always relative: a 70 means better than most of the others today, not good in absolute terms.</p>
+      <table class="comp" style="width:100%;border-collapse:collapse;font-size:13.5px"><thead><tr><th class="l" style="position:static">Ingredient</th><th style="position:static">Weight</th><th class="l" style="position:static">What it measures</th></tr></thead><tbody>
+      ${Object.entries(PARTS).map(([k,p])=>`<tr><td class="l" style="white-space:normal"><b>${esc(p.name)}</b> <small class="muted">${p.group}</small></td><td class="num">${Math.round((w[k]||0)*100)}%</td><td class="l" style="white-space:normal">${esc(p.tip)}</td></tr>`).join("")}</tbody></table>
+      <p><b>Signals:</b> 80+ Strong overweight · 60–79 Overweight · 40–59 Neutral · 20–39 Underweight · under 20 Avoid. A missing ingredient (for example, no 3-year history) is left out and the others re-weighted.</p>
+      <p><b>Not tested on the past.</b> Unlike Sector Compass's score, this one hasn't been back-tested: the IMF forecasts and ratings it uses aren't kept as they stood on past dates. Treat it as a structured summary of today's numbers, not a forecast.</p>`)}
+    ${fold("g-uk","For a UK investor <small>pounds, gilts and currency</small>",`<ul>
+      <li><b>Currency is often the biggest risk</b> in a foreign bond. A 10% move in the currency can swamp several years of yield difference. That's why the tables show yields <i>hedged into pounds</i>: it's the fair way to compare a gilt with a Bund or a Treasury.</li>
+      <li><b>Hedging isn't free or costly by default</b>: it earns or pays the gap between UK and foreign short-term rates. Hedging a low-rate currency (yen, Swiss franc) into pounds adds yield; hedging a high-rate one (Brazil, Turkey) takes most of it away.</li>
+      <li><b>Gilts held directly</b> are free of UK capital gains tax, so low-coupon gilts bought below 100 can be tax-efficient for taxable accounts (the gain to 100 is tax-free; only the coupon is taxed). Check with HMRC guidance or an adviser for your own case.</li>
+      <li><b>Foreign government bonds</b> are mostly bought through bond funds or ETFs; many offer share classes hedged to pounds ("GBP Hedged").</li></ul>`)}
+    ${fold("g-data","Where the data comes from <small>and how fresh it is</small>",`<ul>
+      <li><b>Yields, coupons, maturities, prices:</b> CNBC quotes (Tradeweb and dealer feeds), refreshed every ~15 minutes on the published site. Some emerging markets quote only a few times a day; markets with no trade in 5 days are marked <i>stale</i>.</li>
+      <li><b>Yield history:</b> CNBC daily closes since 2016, downloaded once a day. Some maturities only have today's quote (they shape the curve but have no history).</li>
+      <li><b>Public finances:</b> IMF World Economic Outlook and Fiscal Monitor (updated each April and October), current year ${d.sources.imfYear} with forecasts to ${d.sources.imfYear+5}.</li>
+      <li><b>Central-bank rates:</b> Bank for International Settlements policy-rate series (usually a few days behind).</li>
+      <li><b>Corporate spreads, TIPS, breakevens:</b> FRED (St. Louis Fed), from ICE BofA indices and the US Treasury; daily, a day behind.</li>
+      <li><b>MOVE index and currencies:</b> Yahoo Finance.</li>
+      <li><b>Credit ratings:</b> S&amp;P, Moody's and Fitch, from Wikipedia's maintained table, checked weekly (last ${esc(d.sources.ratingsChecked||"–")}).</li></ul>`)}
+    ${fold("g-limits","Limits <small>read before acting</small>",`<ul>
+      <li>Analytics use simplified conventions: actual/actual day count, settlement today, each market's usual coupon frequency. Good for comparing; not for settling a trade.</li>
+      <li>Benchmark bonds change when governments issue new ones; a jump in coupon or maturity in the tables usually means the benchmark rolled.</li>
+      <li>Hedged yields use policy rates, not the actual forward-contract prices, which also include a "cross-currency basis" (usually small in major currencies, larger in emerging ones).</li>
+      <li>Real yields use IMF inflation forecasts, not market-implied inflation (only the US breakevens are market-based here).</li>
+      <li>Returns are rebuilt from yields, not taken from an index or fund.</li>
+      <li>Nothing here is advice. Bonds can and do lose money, especially long-dated ones when yields rise.</li></ul>`)}
+  </div></section>`;
+}
+
+/* ---------------------------------------------------------------- detail panel */
+const HIST = {};
+async function loadHist(code){ if(HIST[code]) return HIST[code];
+  const res=await fetch(apiUrl(`hist/${code}`)); if(!res.ok) throw new Error("history unavailable"); return HIST[code]=await res.json(); }
+function verdictText(r){
+  const p=r.m.parts, s=r.m.score, names=Object.keys(PARTS).filter(k=>p[k]!=null);
+  const best=names.slice().sort((a,b)=>p[b]-p[a]).slice(0,2), worst=names.slice().sort((a,b)=>p[a]-p[b])[0];
+  const phrase=k=>({realY:`a ${p.realY>=60?"high":"decent"} real yield (${yld(B(r).realY)} after expected inflation)`,
+    carry:`plenty of cushion: yields could rise ${Math.round(B(r).breakeven)}bp in a year before cash wins`,
+    cheap:`a yield near the top of its 3-year range (cheap by its own standards)`,
+    rating:`a strong credit rating (${r.rating&&r.rating.label})`, debt:`low government debt (${Math.round(r.fiscal.debt)}% of GDP)`,
+    gap:`public finances on a steady footing at today's yields`, intRev:`a light interest bill (${Math.round(r.fiscal.intRev)}% of revenue)`}[k]);
+  const weak=k=>({realY:`a low real yield (${yld(B(r).realY)} after expected inflation)`,
+    carry:`little cushion: yields only need to rise ${Math.round(B(r).breakeven)}bp over a year for cash to do better`,
+    cheap:`a yield low in its own 3-year range (expensive by its own standards)`,
+    rating:`a weaker credit rating (${r.rating&&r.rating.label})`, debt:`high government debt (${Math.round(r.fiscal.debt)}% of GDP)`,
+    gap:`a budget ${r.fiscal.gap>0?r.fiscal.gap.toFixed(1)+"% of GDP short of":"only just at"} what would keep debt steady at today's yields`,
+    intRev:`a heavy interest bill (${Math.round(r.fiscal.intRev)}% of revenue)`}[k]);
+  const lead = s>=60? `Among the more attractive government bond markets right now.` : s>=40? `A middling mix of value and safety.` : `Ranks poorly on value and safety together right now.`;
+  return `${lead} Strengths: ${best.map(phrase).join(" and ")}. Weak spot: ${weak(worst)}.`;
+}
+function standouts(r){
+  const b=B(r), f=r.fiscal, out=[];
+  if(isNum(b.pct3y)&&b.pct3y>=95) out.push(["warn",`The ${tenorWord(b.tenor)} yield is near its highest in 3 years (higher than ${b.pct3y}% of days).`]);
+  if(isNum(b.pct3y)&&b.pct3y<=5) out.push(["info",`The ${tenorWord(b.tenor)} yield is near its lowest in 3 years.`]);
+  if(isNum(b.z1y)&&Math.abs(b.z1y)>=2) out.push(["warn",`Yields are stretched: ${b.z1y.toFixed(1)} standard deviations ${b.z1y>0?"above":"below"} their 1-year average.`]);
+  if(r.shape==="Inverted") out.push(["info",`The curve is inverted (2-year above 10-year by ${Math.abs(Math.round(r.slopes.s2s10))}bp): short bonds pay more than long ones.`]);
+  if(isNum(r.expects)&&Math.abs(r.expects)>=40) out.push(["info",`Markets expect ${r.expects>0?"rate rises":"rate cuts"}: the 2-year yield is ${bpf(Math.abs(r.expects),false)} ${r.expects>0?"above":"below"} the cash rate.`]);
+  if(isNum(f.debtIn5y)&&isNum(f.debt)&&f.debtIn5y-f.debt>=8) out.push(["neg",`The IMF expects debt to climb from ${Math.round(f.debt)}% to ${Math.round(f.debtIn5y)}% of GDP over 5 years.`]);
+  if(isNum(f.debtIn5y)&&isNum(f.debt)&&f.debtIn5y-f.debt<=-8) out.push(["pos",`The IMF expects debt to fall from ${Math.round(f.debt)}% to ${Math.round(f.debtIn5y)}% of GDP over 5 years.`]);
+  if(isNum(f.intRev)&&f.intRev>=15) out.push(["neg",`Interest takes ${Math.round(f.intRev)}% of government revenue.`]);
+  if(isNum(f.refi)&&f.refi>=1.5) out.push(["warn",`New 10-year borrowing costs ${yld(b.y)}, ${f.refi.toFixed(1)} points above the ${yld(f.effRate,1)} average on existing debt: the interest bill will keep rising as debt is refinanced.`]);
+  if(isNum(f.rMinusG)&&f.rMinusG>0.5) out.push(["warn",`r > g: the 10-year yield is ${f.rMinusG.toFixed(1)} points above expected nominal growth, so debt rises unless the budget is in surplus before interest.`]);
+  if(r.rating) ["sp","moodys","fitch"].forEach(k=>{ const a=r.rating[k]; if(a&&/^(neg|pos)/i.test(a.o||"")) out.push([/^neg/i.test(a.o)?"neg":"pos",`${{sp:"S&P",moodys:"Moody's",fitch:"Fitch"}[k]} has a ${a.o.toLowerCase()} outlook on its ${a.r} rating.`]); });
+  if(isNum(b.hedgedGbp)&&isNum(b.y)&&r.code!=="GB"&&Math.abs(b.hedgedGbp-b.y)>=1.5) out.push(["info",`Hedging the currency into pounds ${b.hedgedGbp>b.y?"adds":"takes away"} ${Math.abs(b.hedgedGbp-b.y).toFixed(1)} points: ${yld(b.y)} becomes ${yld(b.hedgedGbp)}.`]);
+  if(b.stale) out.push(["warn",`The latest quote is from ${dateStr(b.time)}: this market hasn't traded on the feed recently.`]);
+  return out;
+}
+function bondTable(r){
+  const cols=["y","chg","d1m","ytd","coupon","mat","price","mod","conv","dv01","roll","breakeven","hedgedGbp","realY","vsUS","vsDE","pct3y"];
+  return `<div class="tablebox"><table><thead><tr><th class="l sticky">Maturity</th>${cols.map(k=>`<th title="${esc(C[k].t)}">${esc(C[k].l)}${C[k].s?`<small>${esc(C[k].s)}</small>`:""}</th>`).join("")}</tr></thead>
+    <tbody>${r.bonds.map(b=>`<tr class="${b.outlier?"dim":""}" style="cursor:default"><td class="l sticky"><b>${esc(b.tenor)}</b>${b.tenor===r.bench?' <small class="muted">bench</small>':""}${b.outlier?' <small class="warn" title="Far off the line through its neighbours; left out of the curve">outlier</small>':""}${!b.hist?' <small class="muted" title="Live quote only, no daily history">live</small>':""}</td>
+      ${cols.map(k=>`<td>${C[k].f(C[k].g(r,b),r,b)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function partsHTML(r){ let grp="";
+  return `<div class="parts">${Object.entries(PARTS).map(([k,p])=>{ const v=r.m.parts[k], head=p.group!==grp?`<div class="grp">${p.group} · ${Math.round(Object.keys(PARTS).filter(x=>PARTS[x].group===p.group).reduce((a,x)=>a+(S.data.weights[x]||0),0)*100)}%</div>`:""; grp=p.group;
+    return `${head}<span title="${esc(p.tip)}">${esc(p.name)} <small class="muted">${Math.round((S.data.weights[k]||0)*100)}%</small></span><span class="bar" style="width:100%"><i style="width:${v??0}%;background:${scoreColor(v)}"></i></span><span class="pv">${v==null?"n/a":Math.round(v)} · ${esc(p.val(r))}</span>`; }).join("")}</div>`; }
+function openDetail(code){
+  const r=byCode(code); if(!r) return; S.sel=code;
+  const b=B(r), f=r.fiscal, tabs=[["summary","Summary"],["bonds","All maturities"],["curve","Curve"],["history","History"],["fiscal","Public finances"],["policy","Ratings & rates"]];
+  const facts=(items)=>`<div class="facts">${items.map(([l,v,s])=>`<div><span>${l}</span><b>${v}</b>${s?`<small>${s}</small>`:""}</div>`).join("")}</div>`;
+  const so=standouts(r);
+  const html=`<div class="hd"><div><div class="eyebrow">${esc(r.region)} · ${mktType(r)} · ${esc(ccyName(r.ccy))} · ${esc(bondName(r))}</div><h2>${esc(r.name)}</h2>
+      <div class="controls" style="margin-top:6px">${sigPill(r.m.signal)} ${ratingTag(r)} ${r.euro?tag("Euro area","info"):""} ${b.stale?tag("Stale quote","warn"):""}</div></div>
+      <button class="btn close" id="closeD" type="button">Close</button></div>
+    ${dTabs(tabs,S.dtab)}
+    <div class="dgrid" data-pane="summary">
+      <div class="card verdict"><div class="rings"><figure>${ring(r.m.score,{size:64,stroke:6})}<figcaption>Score</figcaption></figure><figure>${ring(r.m.value,{size:48,stroke:5})}<figcaption>Value</figcaption></figure><figure>${ring(r.m.safety,{size:48,stroke:5})}<figcaption>Safety</figcaption></figure></div>
+        <div><p style="margin:0;font-size:15px;line-height:1.55">${esc(verdictText(r))}</p><p class="muted" style="margin:6px 0 0;font-size:12px">Written by fixed rules from today's numbers. Not advice; see the Guide's limits.</p></div></div>
+      ${facts([[`${tenorWord(b.tenor)} yield`,yld(b.y),`<span class="${ycls(b.chg)}">${bpf(b.chg)} today</span> · <span class="${ycls(b.d1m)}">${bpf(b.d1m)} 1m</span>`],
+        ["Real yield",yld(b.realY),`vs ${yld(f.inflFwd,1)} expected inflation`],["Hedged into £",yld(b.hedgedGbp),`into $: ${yld(b.hedgedUsd)}`],
+        ["Cushion",b.breakeven==null?"–":Math.round(b.breakeven)+"bp","yield rise in a year before cash wins"],["Duration",num(b.mod,1),`DV01 ${isNum(b.dv01)?Math.round(b.dv01).toLocaleString():"–"} ${esc(r.ccy)} per 1m`],
+        ["Coupon",isNum(b.coupon)?b.coupon+"%":"–",`matures ${isoDate(b.mat)} · price ${num(b.price,2)}`],
+        ["Curve 2s10s",bpf(r.slopes.s2s10),esc(r.shape||"")],["Cash rate",yld(r.cash&&r.cash.rate),`market expects ${expectsText(r.expects)}`],
+        ["Spread",r.code==="US"?bpf(b.vsDE)+" vs Bunds":bpf(b.vsUS)+" vs US",r.euro&&r.code!=="DE"?`${bpf(b.vsDE)} vs Bunds`:r.code!=="GB"?`${bpf(b.vsGB)} vs gilts`:`${bpf(b.vsDE)} vs Bunds`],
+        ["Debt",isNum(f.debt)?Math.round(f.debt)+"% GDP":"–",isNum(f.debtIn5y)?`${Math.round(f.debtIn5y)}% in 5 years (IMF)`:""],
+        ["Interest bill",isNum(f.intRev)?Math.round(f.intRev)+"%":"–","of government revenue"],
+        ["1y return in £",pct(tr1(r,"y1","gbp"),1),`local ${pct(tr1(r,"y1","local"),1)} · hedged ${pct(tr1(r,"y1","hedged"),1)}`]])}
+      ${so.length?`<div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:8px">What stands out</div><ul class="why">${so.map(([t,x])=>`<li><span class="${t}">●</span> ${esc(x)}</li>`).join("")}</ul></div>`:""}
+      <div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:10px">Score ingredients (rank among ${rows().length} markets, 0–100)</div>${partsHTML(r)}</div>
+    </div>
+    <div class="dgrid" data-pane="bonds" hidden>
+      <p class="muted" style="margin:0;font-size:13.5px">Every maturity quoted for ${esc(r.name)}. DV01 is in ${esc(ccyName(r.ccy))}s per 1,000,000 face value. Hover a column title for its meaning.</p>
+      ${bondTable(r)}
+      <p class="note">* maturity estimated from the bucket. "live" = today's quote only (no history). Outliers sit far off the line through neighbouring maturities and are left out of the curve.</p></div>
+    <div class="dgrid" data-pane="curve" hidden>
+      <div class="card chartbox"><div class="row"><span class="eyebrow">Yield curve</span><span class="muted" style="font-size:12.5px">today vs 1 month and 1 year ago</span></div><div id="dCurve"></div><div class="legend-row" id="dCurveLeg"></div></div>
+      ${facts([["3m10y",bpf(r.slopes.s3m10)],["2s10s",bpf(r.slopes.s2s10),isNum(r.slopes.s2s10_1m)?`${bpf(r.slopes.s2s10-r.slopes.s2s10_1m)} over 1m`:""],["5s30s",bpf(r.slopes.s5s30)],["10s30s",bpf(r.slopes.s10s30)],["Butterfly 2s5s10s",bpf(r.slopes.fly)],["Shape",esc(r.shape||"–")]])}</div>
+    <div class="dgrid" data-pane="history" hidden>
+      <div class="card chartbox"><div class="row"><span class="eyebrow">Yield history</span><select id="hTenor" aria-label="Maturity"></select>
+        ${seg("hMode",[["y","Yield"],["us","vs US"],["de","vs Bunds"],["s","2s10s"]],"y")}${seg("hRange",[["1","1y"],["3","3y"],["5","5y"],["0","Since 2016"]],"3")}</div>
+        <div id="hChart"><p class="muted">Loading history…</p></div><p class="note" id="hNote"></p></div></div>
+    <div class="dgrid" data-pane="fiscal" hidden>
+      ${facts([["Gross debt",pp(f.debt,0),`net ${pp(f.netDebt,0)}`],["Budget balance",pp(f.balance,1,true),"overall, % GDP"],["Primary balance",pp(f.primary,1,true),"before interest"],
+        ["Interest",pp(f.interest,1),`${isNum(f.intRev)?Math.round(f.intRev)+"% of revenue":""}`],["Avg cost of debt",yld(f.effRate,1),`vs ${yld(b.y)} for new 10-year`],["r − g",pp(f.rMinusG,1,true),`g = ${yld(f.nomGrowth,1)} nominal growth`],
+        ["Needed primary",pp(f.pbNeeded,1,true),"to hold debt steady"],["Budget gap",pp(f.gap,1,true),isNum(f.gap)?(f.gap>0?"debt on course to rise":"debt on course to steady or fall"):""],
+        ["Real growth",yld(f.growth,1),`5-year avg ${yld(f.growthFwd,1)}`],["Inflation",yld(f.inflation,1),`5-year avg ${yld(f.inflFwd,1)}`],["Current account",pp(f.current,1,true),"% GDP"],["Economy",isNum(f.gdpUsd)?"$"+(f.gdpUsd>=1000?(f.gdpUsd/1000).toFixed(1)+"tn":Math.round(f.gdpUsd)+"bn"):"–",`unemployment ${yld(f.unemployment,1)}`]])}
+      <div class="card chartbox"><div class="row"><span class="eyebrow">Government debt, % of GDP</span><span class="key"><i style="background:var(--s1)"></i>Actual</span><span class="key"><i class="dash" style="color:var(--s1)"></i>IMF forecast</span></div><div id="fDebt"></div></div>
+      <div class="card chartbox"><div class="row"><span class="eyebrow">Budget balance, % of GDP</span><span class="key"><i style="background:var(--s1)"></i>Overall</span><span class="key"><i style="background:var(--s2)"></i>Before interest</span><span class="muted" style="font-size:12px">dashed = forecast</span></div><div id="fBal"></div></div>
+      <p class="note">IMF World Economic Outlook and Fiscal Monitor; ${f.year} is an estimate and later years are forecasts.</p></div>
+    <div class="dgrid" data-pane="policy" hidden>
+      <div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:8px">Credit ratings</div>${r.rating?`<table class="comp" style="width:100%"><thead><tr><th class="l" style="position:static">Agency</th><th class="l" style="position:static">Rating</th><th class="l" style="position:static">Outlook</th><th class="l" style="position:static">Since</th></tr></thead><tbody>
+        ${["sp","moodys","fitch"].filter(k=>r.rating[k]).map(k=>`<tr style="cursor:default"><td class="l">${{sp:"S&P",moodys:"Moody's",fitch:"Fitch"}[k]}</td><td class="l"><b class="num">${esc(r.rating[k].r)}</b></td><td class="l ${/^neg/i.test(r.rating[k].o)?"neg":/^pos/i.test(r.rating[k].o)?"pos":""}">${esc(r.rating[k].o||"–")}</td><td class="l">${esc(r.rating[k].d||"–")}</td></tr>`).join("")}</tbody></table>
+        <p class="note">Average: <b>${esc(r.rating.label)}</b> (${r.rating.ig?"investment grade":"below investment grade"}). Ratings checked ${esc(S.data.sources.ratingsChecked||"–")}.</p>`:`<p class="muted">No ratings found.</p>`}</div>
+      ${r.policy?`<div class="card chartbox"><div class="row"><span class="eyebrow">${esc(BANK[r.policy.bank]||"Central bank")} policy rate</span><span class="muted" style="font-size:12.5px">${yld(r.policy.rate)} · ${r.policy.last?`last move ${dateStr(r.policy.last.t)} (${bpf((r.policy.last.to-r.policy.last.from)*100)})`:"no move in 2 years"}</span></div><div id="pChart"></div></div>`:`<p class="muted">No policy-rate feed for ${esc(r.name)}; the cash rate uses the ${esc(r.cash&&r.cash.tenor||"shortest")} bill yield (${yld(r.cash&&r.cash.rate)}).</p>`}</div>`;
+  const d=Drawer.open(r.name,html,()=>{S.sel=null;});
+  bindTips(d);
+  bindDTabs(d,S.dtab,k=>{ S.dtab=k;
+    if(k==="curve"){ const sets=[{pts:r.curve.now,color:"var(--s1)",name:"Today",w:2.5,dots:true}];
+      if(r.curve.m1) sets.push({pts:r.curve.m1,color:"var(--s2)",name:"1 month ago"}); if(r.curve.y1) sets.push({pts:r.curve.y1,color:"var(--s3)",name:"1 year ago",dash:"6 4"});
+      curveChart($("#dCurve"),{sets,h:280}); $("#dCurveLeg").innerHTML=sets.map(s=>`<span class="key"><i style="background:${s.color}" class="${s.dash?"dash":""}"></i>${esc(s.name)}</span>`).join(""); }
+    if(k==="history") drawHistory(r);
+    if(k==="fiscal") drawFiscal(r);
+    if(k==="policy"&&r.policy) lineChart($("#pChart"),{t:r.policy.series.map(p=>p[0]),series:[{v:r.policy.series.map(p=>p[1]),color:"var(--s1)",name:"Policy rate",w:2}],h:200,fmt:v=>v.toFixed(2)+"%"});
+  });
+}
+function drawFiscal(r){
+  const yrTs=y=>Date.UTC(y,6,1)/1000, f=r.fiscal, cut=f.year-1;
+  const dp=f.debtPath||[]; if(dp.length>1){ const t=dp.map(p=>yrTs(p[0]));
+    lineChart($("#fDebt"),{t,series:[{v:dp.map(p=>p[0]<=cut?p[1]:null),color:"var(--s1)",name:"Debt (actual)",w:2.2},{v:dp.map(p=>p[0]>=cut?p[1]:null),color:"var(--s1)",name:"Debt (IMF forecast)",dash:"6 4",w:2.2}],h:200,fmt:v=>v.toFixed(0)+"%",area:1}); }
+  const bal=f.deficitPath||[], pri=f.primaryPath||[]; if(bal.length>1){ const yrs=[...new Set([...bal,...pri].map(p=>p[0]))].sort(), t=yrs.map(yrTs), mB=new Map(bal), mP=new Map(pri);
+    lineChart($("#fBal"),{t,series:[{v:yrs.map(y=>y<=cut&&mB.has(y)?mB.get(y):null),color:"var(--s1)",name:"Overall",w:2},{v:yrs.map(y=>y>=cut&&mB.has(y)?mB.get(y):null),color:"var(--s1)",name:"Overall (forecast)",dash:"6 4",w:2},
+      {v:yrs.map(y=>y<=cut&&mP.has(y)?mP.get(y):null),color:"var(--s2)",name:"Before interest",w:2},{v:yrs.map(y=>y>=cut&&mP.has(y)?mP.get(y):null),color:"var(--s2)",name:"Before interest (forecast)",dash:"6 4",w:2}],h:200,fmt:v=>v.toFixed(1)+"%",baseline:0}); }
+}
+async function drawHistory(r){
+  const el=$("#hChart"), sel=$("#hTenor"); let H;
+  try{ H=await loadHist(r.code); }catch(e){ el.innerHTML=`<p class="muted">History couldn't load: ${esc(e.message)}</p>`; return; }
+  const tens=Object.keys(H.series).sort((a,b)=>tenorYears(a)-tenorYears(b));
+  if(!tens.length){ el.innerHTML='<p class="muted">No daily history for this market.</p>'; return; }
+  if(!sel.options.length){ sel.innerHTML=tens.map(t=>`<option value="${t}" ${t===(tens.includes(r.bench)?r.bench:tens.at(-1))?"selected":""}>${tenorWord(t)}</option>`).join(""); }
+  const st={mode:"y",range:"3"};
+  const draw=async()=>{
+    const t=sel.value, now=Date.now()/1000, since=st.range==="0"?0:now-(+st.range)*365.25*86400;
+    const cut=s=>s.filter(p=>p[0]>=since);
+    let series=[], fmt=v=>v.toFixed(2)+"%", note="", base=null;
+    const live=(tn,src=r)=>{ const s=H.series[tn], bb=src.bonds.find(x=>x.tenor===tn), day=Math.floor(now/86400)*86400;
+      return bb&&s&&s.length&&s[s.length-1][0]<day? [...s,[day,bb.y]] : s; };
+    if(H.series[t]) H.series[t]=live(t);
+    if(st.mode==="y"){ const s=cut(H.series[t]); const A=align([s]); series=[{v:A.v[0],color:"var(--s1)",name:`${t} yield`,w:2}];
+      var T=A.t; note=`${tenorWord(t)} yield. Daily for the last 2 years, weekly before.`; }
+    else if(st.mode==="s"){ if(!H.series["2Y"]||!H.series["10Y"]){ el.innerHTML='<p class="muted">Needs both 2- and 10-year history.</p>'; $("#hNote").textContent=""; return; }
+      const A=align([cut(H.series["10Y"]),cut(H.series["2Y"])]); var T=A.t; series=[{v:A.v[0].map((v,i)=>v!=null&&A.v[1][i]!=null?(v-A.v[1][i])*100:null),color:"var(--s1)",name:"2s10s",w:2}];
+      fmt=v=>v.toFixed(0)+"bp"; base=0; note="10-year minus 2-year yield. Below zero = inverted."; }
+    else { const ref=st.mode==="us"?"US":"DE"; if(ref===r.code){ el.innerHTML=`<p class="muted">This is the reference market itself.</p>`; $("#hNote").textContent=""; return; }
+      let R2; try{ R2=await loadHist(ref); }catch(e){ el.innerHTML='<p class="muted">Reference history unavailable.</p>'; return; }
+      const rs=R2.series[t]||R2.series["10Y"]; if(!rs){ el.innerHTML='<p class="muted">No matching reference maturity.</p>'; return; }
+      const A=align([cut(H.series[t]),cut(rs)]); var T=A.t; series=[{v:A.v[0].map((v,i)=>v!=null&&A.v[1][i]!=null?(v-A.v[1][i])*100:null),color:"var(--s2)",name:`Spread vs ${ref==="US"?"Treasuries":"Bunds"}`,w:2}];
+      fmt=v=>v.toFixed(0)+"bp"; base=0; note=`${tenorWord(t)} yield minus the ${ref==="US"?"US Treasury":"German Bund"} of the same maturity. Rising = this market paying more over the reference.`; }
+    lineChart(el,{t:T,series,h:280,fmt,baseline:base,area:st.mode==="y"?1:0});
+    $("#hNote").textContent=note;
+  };
+  sel.onchange=draw; bindSeg("hMode",v=>{ st.mode=v; document.querySelectorAll("#hMode button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); draw(); });
+  bindSeg("hRange",v=>{ st.range=v; document.querySelectorAll("#hRange button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); draw(); });
+  draw();
+}
+
+/* ---------------------------------------------------------------- controls */
+function bindControls(){
+  document.querySelectorAll("#regionTabs [data-v]").forEach(b=>b.onclick=()=>{ S.region=b.dataset.v; store.set("region",S.region);
+    document.querySelectorAll("#regionTabs [data-v]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===S.region)); $("#monTable").innerHTML=monitorTable(); bindTips($("#monTable")); bindSort(); });
+  const q=$("#q"); if(q) q.oninput=()=>{ S.q=q.value; $("#monTable").innerHTML=monitorTable(); bindSort(); };
+  bindSeg("tenorSeg",v=>{ S.tenor=v; store.set("tenor",v); redrawMonitor(); });
+  bindSeg("colSeg",v=>{ S.cols=v; store.set("cols",v); if(!["name",...COLSETS[v].cols].includes(S.sort.k)&&S.sort.k!=="score") S.sort={k:COLSETS[v].cols[0],dir:-1}; redrawMonitor(); });
+  bindSort();
+  // curves
+  $("#curveAdd")&&($("#curveAdd").onchange=e=>{ if(e.target.value){ S.curveSel=[...S.curveSel,e.target.value].slice(0,5); store.set("curveSel",S.curveSel); redrawCurves(); } });
+  document.querySelectorAll("#curveChips [data-rm]").forEach(b=>b.onclick=()=>{ S.curveSel=S.curveSel.filter(c=>c!==b.dataset.rm); if(!S.curveSel.length) S.curveSel=["US"]; store.set("curveSel",S.curveSel); redrawCurves(); });
+  document.querySelectorAll("#cmpSeg button").forEach(b=>b.onclick=()=>{ const k=b.dataset.v; S.curveCmp=S.curveCmp.includes(k)?S.curveCmp.filter(x=>x!==k):[...S.curveCmp,k]; store.set("curveCmp",S.curveCmp); redrawCurves(); });
+  bindSeg("heatSeg",v=>{ S.heat=v; store.set("heat",v); document.querySelectorAll("#heatSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); $("#heatTable").innerHTML=heatTable(); $("#heatNote").textContent=heatNote(); bindTips($("#heatTable")); });
+  document.querySelectorAll("#slopeTable [data-ssort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.ssort; S.slopeSort={k,dir:S.slopeSort.k===k?-S.slopeSort.dir:(k==="name"?1:-1)}; $("#slopeTable").innerHTML=slopeTable(); bindControls(); });
+  // countries
+  $("#mapSel")&&($("#mapSel").onchange=e=>{ S.mapM=e.target.value; store.set("mapM",S.mapM); drawMap(); });
+  document.querySelectorAll("[data-preset]").forEach(b=>b.onclick=()=>{ [S.sx,S.sy]=b.dataset.preset.split(","); store.set("sx",S.sx); store.set("sy",S.sy);
+    document.querySelectorAll("[data-preset]").forEach(x=>x.setAttribute("aria-pressed",x===b)); $("#sxSel").value=S.sx; $("#sySel").value=S.sy; drawScatter(); });
+  const ax=()=>{ S.sx=$("#sxSel").value; S.sy=$("#sySel").value; store.set("sx",S.sx); store.set("sy",S.sy); document.querySelectorAll("[data-preset]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.preset===`${S.sx},${S.sy}`)); drawScatter(); };
+  $("#sxSel")&&($("#sxSel").onchange=ax); $("#sySel")&&($("#sySel").onchange=ax);
+  bindSeg("sgrpSeg",v=>{ S.sgrp=v; store.set("sgrp",v); document.querySelectorAll("#sgrpSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); drawScatter(); });
+  // credit
+  $("#creditSel")&&($("#creditSel").onchange=e=>{ S.credit=e.target.value; store.set("credit",S.credit); drawCredit(); });
+  $("#inflSel")&&($("#inflSel").onchange=e=>{ S.infl=e.target.value; store.set("infl",S.infl); drawCredit(); });
+  // banks
+  document.querySelectorAll("[data-bsort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.bsort; S.bankSort={k,dir:S.bankSort.k===k?-S.bankSort.dir:(k==="name"?1:-1)}; redrawBanks(); });
+  document.querySelectorAll("[data-bank]").forEach(b=>b.onclick=()=>{ const k=b.dataset.bank; S.banks=S.banks.includes(k)?S.banks.filter(x=>x!==k):[...S.banks,k].slice(-5); store.set("banks",S.banks);
+    document.querySelectorAll("[data-bank]").forEach(x=>x.setAttribute("aria-pressed",S.banks.includes(x.dataset.bank))); drawBanks(); });
+}
+function bindSort(){ document.querySelectorAll("#monTable th[data-sort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.sort;
+  S.sort={k,dir:S.sort.k===k?-S.sort.dir:(k==="name"?1:-1)}; store.set("sort",S.sort); $("#monTable").innerHTML=monitorTable(); bindTips($("#monTable")); bindSort(); }); }
+function redrawMonitor(){ const v=document.querySelector('[data-view="monitor"]'); v.innerHTML=monitorHTML(); restoreOpen(v); bindControls(); bindTips(v); }
+function redrawCurves(){ const v=document.querySelector('[data-view="curves"]'); v.innerHTML=curvesHTML(); restoreOpen(v); bindControls(); bindTips(v); drawCurves(); }
+function redrawBanks(){ const v=document.querySelector('[data-view="banks"]'); v.innerHTML=banksHTML(); bindControls(); drawBanks(); }
+
+/* ---------------------------------------------------------------- go */
+function drawOverview(){ const el=$("#ovScatter"); if(!el) return;
+  scatterChart(el,{pts:rows().map(r=>({x:r.m.safety,y:r.m.value,label:r.code,key:r.code,color:r.dm?"var(--s1)":"var(--s2)",tip:`<b>${esc(r.name)}</b><br>Value ${Math.round(r.m.value)} · safety ${Math.round(r.m.safety)} · score ${Math.round(r.m.score)}`})),
+    xlab:"Safety (0–100) →",ylab:"Value (0–100) →",xfmt:v=>v.toFixed(0),yfmt:v=>v.toFixed(0),fit:false,quad:vsQuad,h:330}); }
+Views.init(["overview","monitor","curves","countries","credit","banks","guide"],
+  {overview:drawOverview,curves:drawCurves,countries:()=>{drawMap();drawScatter();},credit:drawCredit,banks:drawBanks});
+let resizeT; addEventListener("resize",()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if(S.data) Views.apply(); },200); });
+startLoop({url:"bonds",onData:data=>{ S.data=data; render(); if(S.sel&&$("#drawer")) openDetail(S.sel); }});
+</script>
+</body>
+</html>
