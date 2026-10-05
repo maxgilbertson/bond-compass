@@ -135,6 +135,16 @@ IMF = {
     "NGDPD": "gdpUsd",                  # GDP, US$ billions (WEO)
 }
 
+# Bank of England daily curves (IADB): UK zero-coupon nominal, real (index-linked) and implied inflation (RPI)
+BOE = [
+    ("IUDSRZC", "UK 5-year real yield", "ukreal", "yield"),
+    ("IUDMRZC", "UK 10-year real yield", "ukreal", "yield"),
+    ("IUDLRZC", "UK 20-year real yield", "ukreal", "yield"),
+    ("IUDSIZC", "UK 5-year implied inflation (RPI)", "ukinfl", "yield"),
+    ("IUDMIZC", "UK 10-year implied inflation (RPI)", "ukinfl", "yield"),
+    ("IUDLIZC", "UK 20-year implied inflation (RPI)", "ukinfl", "yield"),
+]
+
 YAHOO = ["^MOVE", "GBP=X"]  # bond-market volatility (MOVE index); pounds per US dollar
 
 

@@ -79,6 +79,7 @@ const ICON = {
   countries:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/>',
   credit:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
   banks:'<path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
+  gilts:'<path d="M4 20h16M6 20V9M10 20V9M14 20V9M18 20V9M3 9l9-5 9 5"/>',
   portfolio:'<path d="M3 7h18v13H3z"/><path d="M8 7V4h8v3"/><path d="M3 13h18"/>',
   briefing:'<path d="M5 4h11l3 3v13H5z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
   record:'<path d="M4 4v16h16"/><path d="m8 14 3.5-3.5 3 3L20 8"/>',

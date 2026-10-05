@@ -35,6 +35,7 @@
   <button type="button" data-view="countries">Countries</button>
   <button type="button" data-view="credit">Credit &amp; inflation</button>
   <button type="button" data-view="banks">Central banks</button>
+  <button type="button" data-view="gilts">UK gilts</button>
   <button type="button" data-view="portfolio">Portfolio</button>
   <button type="button" data-view="briefing">Briefing</button>
   <button type="button" data-view="record">Track record</button>
@@ -195,6 +196,7 @@ function render(){
     <div class="view" data-view="countries">${countriesHTML()}</div>
     <div class="view" data-view="credit">${creditHTML(d)}</div>
     <div class="view" data-view="banks">${banksHTML()}</div>
+    <div class="view" data-view="gilts">${giltsHTML(d)}</div>
     <div class="view" data-view="portfolio">${portfolioHTML()}${waysHTML(d)}</div>
     <div class="view" data-view="briefing">${briefingHTML()}</div>
     <div class="view" data-view="record">${recordHTML(d)}</div>
@@ -203,7 +205,7 @@ function render(){
       public finances from the IMF World Economic Outlook and Fiscal Monitor; central-bank rates from the Bank for International Settlements; credit spreads, TIPS and breakevens
       from FRED (ICE BofA indices); credit ratings from Wikipedia's table of S&amp;P, Moody's and Fitch ratings (checked ${esc(d.sources.ratingsChecked||"–")}). Analytics use simplified conventions and settle today.</p>`;
   restoreOpen();
-  bindControls(); bindPortfolio(); bindPair();
+  bindControls(); bindPortfolio(); bindPair(); bindGilts();
   bindTips(document);
   Views.apply();
 }
@@ -500,7 +502,7 @@ function creditHTML(d){
   const cr=id=>d.credit.find(c=>c.id===id);
   const ladder=d.credit.filter(c=>c.group==="ladder"), mx=Math.max(...ladder.map(c=>c.last));
   const ust=byCode("US"), u10=ust&&B(ust);
-  const spreadOpts=d.credit.filter(c=>c.kind==="spread"), inflOpts=d.credit.filter(c=>c.group==="real"||c.group==="infl");
+  const spreadOpts=d.credit.filter(c=>c.kind==="spread"), inflOpts=d.credit.filter(c=>c.group==="real"||c.group==="infl"), ukOpts=d.credit.filter(c=>c.group==="ukreal"||c.group==="ukinfl");
   return `<section>${secHead({eyebrow:"Corporate credit",title:"What companies pay over governments",lead:"Option-adjusted spreads (OAS) of ICE BofA corporate bond indices: the extra yield over government bonds that investors demand for default risk. FRED keeps the last 3 years of these."})}
     <div class="macro">${[cr("BAMLC0A0CM"),cr("BAMLC0A4CBBB"),cr("BAMLH0A0HYM2"),cr("BAMLHE00EHYIOAS"),cr("BAMLEMHBHYCRPIOAS")].map(c=>creditTile(c)).join("")}</div></section>
   <section class="two">
@@ -515,7 +517,7 @@ function creditHTML(d){
       <span class="muted" style="font-size:12.5px" id="creditTxt"></span></div><div id="creditChart"></div></div></section>
   <section>${secHead({eyebrow:"Inflation",title:"Real yields and inflation expectations",lead:"US inflation-protected Treasuries (TIPS) pay a 'real' yield on top of inflation. The gap between ordinary and inflation-protected yields (the breakeven) is the inflation rate the market expects."})}
     <div class="macro c3">${inflOpts.map(c=>creditTile(c)).join("")}</div>
-    <div class="card chartbox" style="margin-top:14px"><div class="row"><span class="eyebrow">History</span><select id="inflSel" aria-label="Series to chart">${inflOpts.map(c=>`<option value="${c.id}" ${S.infl===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}${d.move?`<option value="MOVE" ${S.infl==="MOVE"?"selected":""}>MOVE index (bond volatility)</option>`:""}</select></div><div id="inflChart"></div></div>
+    <div class="card chartbox" style="margin-top:14px"><div class="row"><span class="eyebrow">History</span><select id="inflSel" aria-label="Series to chart">${inflOpts.map(c=>`<option value="${c.id}" ${S.infl===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}${d.move?`<option value="MOVE" ${S.infl==="MOVE"?"selected":""}>MOVE index (bond volatility)</option>${ukOpts.map(c=>`<option value="${c.id}" ${S.infl===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}`:""}</select></div><div id="inflChart"></div></div>
     ${more("inflhelp",`<ul><li><b>Real yield</b> (TIPS): the return above inflation if held to maturity. Positive and high real yields make bonds attractive in their own right; they also weigh on gold, growth shares and property.</li>
       <li><b>Breakeven inflation</b>: ordinary Treasury yield minus the TIPS yield. If inflation averages more than this, TIPS do better; less, ordinary Treasuries do better.</li>
       <li><b>5-year, 5-year forward</b>: the inflation rate the market expects for the five years that start five years from now. Central banks watch it to see if long-run expectations are drifting away from the 2% target.</li></ul>`,"What these mean")}</section>`;
@@ -526,7 +528,7 @@ function drawCredit(){
   $("#creditTxt").textContent=`Now ${c.last.toFixed(0)}bp · low ${c.lo.toFixed(0)} · high ${c.hi.toFixed(0)} · as of ${dateStr(c.asOf)}`;
   let t,v,name,fmt=x=>x.toFixed(2)+"%", base=null;
   if(S.infl==="MOVE"&&d.move){ t=d.move.series.map(p=>p[0]); v=d.move.series.map(p=>p[1]); name="MOVE"; fmt=x=>x.toFixed(0); base=null; }
-  else { const s=d.credit.find(x=>x.id===S.infl)||d.credit.find(x=>x.group==="real"); t=s.series.map(p=>p[0]); v=s.series.map(p=>p[1]); name=s.label; base=s.group==="infl"?2:0; }
+  else { const s=d.credit.find(x=>x.id===S.infl)||d.credit.find(x=>x.group==="real"); t=s.series.map(p=>p[0]); v=s.series.map(p=>p[1]); name=s.label; base=s.group==="infl"?2:s.group==="ukinfl"?null:0; }
   lineChart($("#inflChart"),{t,series:[{v,color:"var(--s3)",name,w:2}],h:220,fmt,baseline:base,baselineLabel:base===2?"2% inflation target":base===0?"zero":"",area:1});
 }
 
@@ -641,6 +643,45 @@ function guideHTML(d){
       <li>Returns are rebuilt from yields, not taken from an index or fund.</li>
       <li>Nothing here is advice. Bonds can and do lose money, especially long-dated ones when yields rise.</li></ul>`)}
   </div></section>`;
+}
+
+/* ---------- UK gilts: every gilt, its yield and after-tax yield */
+S.giltTax=store.get("giltTax","40"); S.giltMat=store.get("giltMat","all"); S.giltSort=store.get("giltSort",{k:"after",dir:-1});
+function giltsHTML(d){
+  const g=d.gilts, uk=(d.credit||[]).filter(c=>c.group==="ukreal"||c.group==="ukinfl");
+  const ukSec = uk.length? `<section>${secHead({eyebrow:"Bank of England",title:"UK real yields and expected inflation",lead:"From the Bank of England's daily gilt curves: the yield on index-linked gilts above inflation (real yield), and the inflation rate that makes ordinary and index-linked gilts pay the same (implied inflation). Index-linked gilts follow RPI, which has run above CPI; the gap is due to close in 2030."})}
+    <div class="macro c3">${uk.map(c=>creditTile(c)).join("")}</div></section>` : "";
+  if(!g||!g.gilts||!g.gilts.length) return `<section>${secHead({eyebrow:"Gilt finder",title:"Every UK gilt",lead:"Prices for every gilt come from the UK Debt Management Office once a day, after it publishes them in the afternoon."})}
+    <p class="muted">The first day's gilt prices haven't been collected yet. They appear here after the next daily run.</p></section>${ukSec}`;
+  const t=+S.giltTax, key=t?`at${t}`:"ytm";
+  let list=g.gilts.filter(x=>!x.linker&&x.ytm!=null);
+  list=list.filter(x=>S.giltMat==="all"||(S.giltMat==="s"?x.yrs<7:S.giltMat==="m"?x.yrs>=7&&x.yrs<15:x.yrs>=15));
+  const val=(x,k)=>k==="after"?x[key]:k==="gross"?(t?x[key]/(1-t/100):x.ytm):x[k];
+  list.sort((a,b)=>{ const A=val(a,S.giltSort.k), B2=val(b,S.giltSort.k); if(A==null) return 1; if(B2==null) return -1; return (typeof A==="string"?A.localeCompare(B2):A-B2)*S.giltSort.dir; });
+  const best=list.slice().sort((a,b)=>(b[key]??-9)-(a[key]??-9))[0];
+  const th=(k,l,s="",tip="")=>`<th data-gsort="${k}" title="${esc(tip)}" ${S.giltSort.k===k?`data-dir="${S.giltSort.dir>0?"▲":"▼"}"`:""} class="${k==="name"?"l sticky":""}">${l}${s?`<small>${s}</small>`:""}</th>`;
+  const linkers=g.gilts.filter(x=>x.linker);
+  return `<section>${secHead({eyebrow:"Gilt finder",title:"Every UK gilt, after tax",lead:`All ${g.gilts.length} gilts in issue, priced on ${esc(isoDate(g.date,true))} by the UK Debt Management Office. For a taxpayer, interest is taxed but the gain as a gilt is repaid at £100 is free of capital gains tax, so low-coupon gilts bought below £100 can pay far more after tax.`})}
+    <div class="toolbar">${seg("giltTaxSeg",[["0","No tax (ISA/SIPP)"],["20","Basic rate 20%"],["40","Higher rate 40%"],["45","Additional 45%"]],S.giltTax,"Your income-tax rate")}
+      ${seg("giltMatSeg",[["all","All"],["s","Under 7 years"],["m","7–15 years"],["l","15+ years"]],S.giltMat,"Maturity")}</div>
+    ${best&&t?`<div class="intro" style="margin-top:4px">${icon("coin",18)}<div>At a ${t}% tax rate, the highest after-tax yield in this range is <b>${esc(best.name)}</b>: <b>${yld(best[key])}</b> after tax, the same as <b>${yld(best[key]/(1-t/100))}</b> before tax on a savings account or a fully taxed bond. Its gross yield is ${yld(best.ytm)}.</div></div>`:""}
+    <div class="tablebox tall" style="margin-top:10px"><table><thead><tr>${th("name","Gilt")}${th("mat","Matures")}${th("coupon","Coupon","% a year")}${th("clean","Price","per £100")}${th("ytm","Yield","before tax","Gross yield to maturity")}${th("after","After tax",t?`at ${t}%`:"no tax","Yield after income tax on the coupons; the gain to £100 is tax-free")}${th("gross","Taxable equivalent","","The yield a fully taxed investment (like a savings account) would need to pay the same after tax")}${th("rv","vs curve","bp","How far this gilt's yield sits above (+) or below (−) a smooth curve through the benchmark gilts")}${th("mod","Duration","","% price change for a 1% move in yield")}</tr></thead>
+    <tbody>${list.map(x=>`<tr style="cursor:default"><td class="l sticky"><b>${esc(x.name)}</b><small class="muted" style="display:block;font-family:var(--mono);font-size:11px">${esc(x.isin)}</small></td>
+      <td><span class="num">${esc(isoDate(x.mat))}</span></td><td><span class="num">${num(x.coupon,3).replace(/0+$/,"").replace(/\.$/,"")}%</span></td><td><span class="num">£${num(x.clean,2)}</span></td>
+      <td><span class="num">${yld(x.ytm)}</span></td><td><b class="num">${yld(x[key])}</b></td><td><span class="num">${yld(val(x,"gross"))}</span></td>
+      <td><span class="num ${isNum(x.rv)&&Math.abs(x.rv)>=5?(x.rv>0?"pos":"neg"):""}">${bpf(x.rv,true,false)}</span></td><td><span class="num">${num(x.mod,1)}</span></td></tr>`).join("")}</tbody></table></div>
+    ${more("gilthelp",`<ul><li><b>Why after tax differs:</b> a gilt's coupon is income (taxed at your rate outside an ISA or pension), but the rise from today's price to £100 at maturity is exempt from capital gains tax. Low-coupon gilts priced well below £100 get most of their return that way.</li>
+      <li><b>Taxable equivalent</b> = after-tax yield ÷ (1 − tax rate): what a savings account or a fully taxed bond would need to pay to match it.</li>
+      <li><b>Simplifications:</b> yields assume you hold to maturity and reinvest at the same yield; settlement is the price date; the accrued-income rules for holdings over £5,000 nominal are ignored. Prices are the DMO's reference prices for its purchase and sale service, close to but not the same as a broker's dealing price.</li>
+      <li>Index-linked gilts (${linkers.length}) are listed by price only below; their yields depend on future RPI.</li></ul>`,"How this works")}
+    ${linkers.length?fold("linkers",`Index-linked gilts <small>${linkers.length}, prices only</small>`,`<div class="tablebox"><table><thead><tr><th class="l">Gilt</th><th>Matures</th><th>Price</th></tr></thead><tbody>${linkers.map(x=>`<tr style="cursor:default"><td class="l">${esc(x.name)}</td><td><span class="num">${esc(isoDate(x.mat))}</span></td><td><span class="num">£${num(x.clean,2)}</span></td></tr>`).join("")}</tbody></table></div>`):""}
+  </section>${ukSec}`;
+}
+function bindGilts(){
+  const redraw=()=>{ const v=document.querySelector('#app [data-view="gilts"]'); v.innerHTML=giltsHTML(S.data); restoreOpen(v); bindGilts(); bindTips(v); };
+  bindSeg("giltTaxSeg",v=>{ S.giltTax=v; store.set("giltTax",v); redraw(); });
+  bindSeg("giltMatSeg",v=>{ S.giltMat=v; store.set("giltMat",v); redraw(); });
+  document.querySelectorAll("[data-gsort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.gsort; S.giltSort={k,dir:S.giltSort.k===k?-S.giltSort.dir:(k==="name"||k==="mat"?1:-1)}; store.set("giltSort",S.giltSort); redraw(); });
 }
 
 /* ---------- portfolio: what a set of holdings earns and how it reacts to shocks */
@@ -1067,7 +1108,7 @@ function redrawBanks(){ const v=document.querySelector('#app [data-view="banks"]
 function drawOverview(){ const el=$("#ovScatter"); if(!el) return;
   scatterChart(el,{pts:rows().map(r=>({x:r.m.safety,y:r.m.value,label:r.code,key:r.code,color:r.dm?"var(--s1)":"var(--s2)",tip:`<b>${esc(r.name)}</b><br>Value ${Math.round(r.m.value)} · safety ${Math.round(r.m.safety)} · score ${Math.round(r.m.score)}`})),
     xlab:"Safety (0–100) →",ylab:"Value (0–100) →",xfmt:v=>v.toFixed(0),yfmt:v=>v.toFixed(0),fit:false,quad:vsQuad,h:330}); }
-Views.init(["overview","monitor","curves","countries","credit","banks","portfolio","briefing","record","guide"],
+Views.init(["overview","monitor","curves","countries","credit","banks","gilts","portfolio","briefing","record","guide"],
   {overview:drawOverview,curves:()=>{drawCurves();drawPair();},countries:()=>{drawMap();drawScatter();},credit:drawCredit,banks:drawBanks,briefing:drawBriefing,record:drawRecord});
 let resizeT; addEventListener("resize",()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if(S.data) Views.apply(); },200); });
 startLoop({url:"bonds",onData:data=>{ S.data=data; render(); if(S.sel&&$("#drawer")) openDetail(S.sel); }});

@@ -228,6 +228,24 @@ def policy_rates(codes):
     return cached("bis", 12 * 3600, fetch, complete=lambda d: all(c in d for c in codes), retry=3600)
 
 
+def boe(codes):
+    """Bank of England daily yield-curve series since 2016 (about two business days behind), every 6 hours."""
+    def fetch(old):
+        url = ("https://www.bankofengland.co.uk/boeapps/database/_iadb-fromshowcolumns.asp?csv.x=yes&Datefrom=01/Jan/2016"
+               f"&Dateto=now&SeriesCodes={','.join(codes)}&CSVF=TN&UsingCodes=Y&VPD=Y&VFD=N")
+        text = get(url, timeout=60).decode("utf-8-sig")
+        if not text.startswith("DATE"):
+            raise RuntimeError("unexpected reply from the Bank of England database")
+        res = {}
+        for r in csv.DictReader(io.StringIO(text)):
+            t = int(datetime.strptime(r["DATE"], "%d %b %Y").replace(tzinfo=timezone.utc).timestamp())
+            for c in codes:
+                if r.get(c):
+                    res.setdefault(c, []).append([t, float(r[c])])
+        return res or None
+    return cached("boe", 6 * 3600, fetch, complete=lambda d: all(c in d for c in codes), retry=3600)
+
+
 def policy_rates_monthly(codes):
     """Month-end policy rates since 2015 (for the test on past data), refreshed weekly."""
     def fetch(old):

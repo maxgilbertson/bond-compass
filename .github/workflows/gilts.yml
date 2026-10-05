@@ -1,0 +1,40 @@
+name: Daily gilt prices
+
+# Once each weekday, after the Debt Management Office publishes the day's gilt prices (about 2pm UK time):
+# fetch them in a single polite request, work out every gilt's yield and after-tax yield, and save
+# data/gilts.json. If the DMO's site asks for a CAPTCHA the job stops; it never tries to get round it.
+on:
+  schedule:
+    - cron: "40 16 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: repo-writes
+  cancel-in-progress: false
+
+jobs:
+  gilts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python app/gilts.py
+      - name: Save to the repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gilts.json
+          if git diff --cached --quiet; then echo "Nothing new to save"; exit 0; fi
+          git commit -m "Gilt prices $(date -u +%F)"
+          git pull --rebase
+          git push
+      - name: Publish the site with the new prices
+        run: gh workflow run deploy.yml
+        env:
+          GH_TOKEN: ${{ github.token }}

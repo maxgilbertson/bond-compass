@@ -236,6 +236,7 @@ def fetch_everything():
             "ratings": ex.submit(_try, sources.ratings, names),
             "funds": ex.submit(_try, sources.fund_prices, FUNDS),
             "extra": ex.submit(_try, extra_sources.fetch_all),
+            "boe": ex.submit(_try, sources.boe, [b[0] for b in markets.BOE]),
         }
         got = {k: j.result() for k, j in jobs.items()}
     errors = [e for _, e in got.values() if e]
@@ -564,7 +565,8 @@ def build():
             b.pop("_h", None), b.pop("_mat", None)
         r.pop("_imf"), r.pop("_bis")
 
-    credit = credit_block(fred, now)
+    boe, _ = raw.get("boe") or ({}, None)
+    credit = credit_block({**fred, **boe}, now, markets.FRED + markets.BOE)
     move = fx.get("^MOVE")
     move_b = None
     if move:
@@ -583,12 +585,29 @@ def build():
         "calendar": calendar_events.upcoming(days=45),
         "funds": funds_block(raw.get("funds")),
         "monthly": monthly_block(raw.get("monthly") or {}, imf, rts, now),
+        "gilts": gilts_block(next((r for r in rows if r["code"] == "GB"), None)),
         "rules": backdrop(rows, credit, move_b),
         "sources": {"imfAt": imf_at, "fredAt": fred_at, "bisAt": bis_at, "ratingsChecked": rts_checked,
                     "imfYear": year},
         "errors": errors + [f"no quote: {s}" for r in markets.MARKETS for _, s, _ in pts[r[0]] if s not in Q and s not in H][:40],
     }
     return out
+
+
+def gilts_block(gb):
+    """Every gilt from the daily DMO file (data/gilts.json), with its distance from the fitted gilt curve."""
+    try:
+        g = json.loads((sources.ROOT / "data" / "gilts.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    fit = None
+    if gb and gb.get("fit"):
+        pts = [(b["yrs"], b["y"]) for b in gb["bonds"] if not b.get("outlier")]
+        fit = bondmath.fit_curve(pts)
+    for x in g.get("gilts", []):
+        if fit and x.get("ytm") is not None and x.get("yrs"):
+            x["rv"] = round((x["ytm"] - bondmath.curve_at(fit, x["yrs"])) * 100, 1)
+    return g
 
 
 def monthly_block(data, imf, rts, now):
@@ -646,9 +665,9 @@ def health(rows, Q, pts, errors, ats, ratings_checked, now):
             "ratingsChecked": ratings_checked}
 
 
-def credit_block(fred, now):
+def credit_block(fred, now, series_list):
     out = []
-    for sid, label, group, kind in markets.FRED:
+    for sid, label, group, kind in series_list:
         s = fred.get(sid)
         if not s:
             continue
