@@ -42,7 +42,7 @@
   <button type="button" data-view="guide">Guide</button>
 </div></nav>
 
-<main class="wrap" id="app"><div class="loading">Fetching live yields, curves, credit spreads and public finances for 33 bond markets…</div></main>
+<main class="wrap" id="app"><div class="loading">Fetching live yields, curves, credit spreads and public finances for 39 bond markets…</div></main>
 <div class="tip" id="tip" hidden></div>
 
 <script src="common.js"></script>
@@ -628,6 +628,11 @@ function guideHTML(d){
       <li><b>Foreign government bonds</b> are mostly bought through bond funds or ETFs; many offer share classes hedged to pounds ("GBP Hedged").</li></ul>`)}
     ${fold("g-data","Where the data comes from <small>and how fresh it is</small>",`<ul>
       <li><b>Yields, coupons, maturities, prices:</b> CNBC quotes (Tradeweb and dealer feeds), refreshed every ~15 minutes on the published site. Some emerging markets quote only a few times a day; markets with no trade in 5 days are marked <i>stale</i>.</li>
+      <li><b>Norway, Poland, Singapore, Malaysia, the Philippines and Peru:</b> official daily sources instead (Norges Bank; the BondSpot fixing for Polish Treasury bonds; the Monetary Authority of Singapore; Bank Negara Malaysia; the Asian Development Bank's AsianBondsOnline, sourced from Bloomberg; the Central Reserve Bank of Peru), checked once a day. For Poland the "2-year", "5-year" and "10-year" are the fixed-rate bonds closest to those maturities.</li>
+      <li><b>Monthly-only markets</b> (Israel, Colombia, Czech Republic, Denmark, Romania, Taiwan): Bank of Israel, Banco de la República, the ECB's harmonised long-term rates and Taiwan's central bank.</li>
+      <li><b>UK gilts:</b> every gilt's price from the UK Debt Management Office's daily price report, fetched once each weekday; UK real yields and implied inflation from the Bank of England's yield curves.</li>
+      <li><b>Funds:</b> London-listed bond ETFs checked on providers' own pages (fees) on 5 Oct 2026; prices and returns from Yahoo Finance.</li>
+      <li><b>Calendar:</b> each central bank's and statistics office's published schedule, checked 5 Oct 2026.</li>
       <li><b>Yield history:</b> CNBC daily closes since 2016, downloaded once a day. Some maturities only have today's quote (they shape the curve but have no history).</li>
       <li><b>Public finances:</b> IMF World Economic Outlook and Fiscal Monitor (updated each April and October), current year ${d.sources.imfYear} with forecasts to ${d.sources.imfYear+5}.</li>
       <li><b>Central-bank rates:</b> Bank for International Settlements policy-rate series (usually a few days behind).</li>
