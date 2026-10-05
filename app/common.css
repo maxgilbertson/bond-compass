@@ -96,6 +96,26 @@ section{margin-top:28px}
 .chcard:hover{border-color:var(--accent)}
 .chcard small{color:var(--muted);font-size:12px}
 
+/* briefing */
+.brief{display:grid;gap:14px;max-width:980px}
+.brief .card{padding:16px 20px;font-size:15px;line-height:1.6}
+.brief .card h3{font-size:19px;margin-bottom:6px}
+.brief .card p{margin:0 0 10px}.brief .card ul{margin:0 0 6px;padding-left:20px;display:grid;gap:6px}
+.brief .lead{background:color-mix(in oklab,var(--accent) 8%,var(--surface));border-color:color-mix(in oklab,var(--accent) 28%,var(--line))}
+.brief .foot{font-size:13px;color:var(--muted)}
+
+/* portfolio tester */
+.port td input[type=number]{width:110px;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:4px 6px;font-family:var(--mono);font-size:12.5px;text-align:right}
+.port td select{font-size:12.5px;padding:3px 6px}
+.port tbody tr{cursor:default}
+.port tbody tr:hover td{background:none}
+.scen td.bar{min-width:160px}
+.pnlbar{height:10px;border-radius:3px;display:inline-block;vertical-align:middle}
+.cal{display:grid;gap:6px}
+.cal .ev{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;font-size:13.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.cal .ev:last-child{border-bottom:0}
+.cal .ev b{font-family:var(--mono);font-weight:500;font-size:12.5px}
+
 /* ticker tiles */
 .macro.c2{grid-template-columns:repeat(2,1fr)}.macro.c3{grid-template-columns:repeat(3,1fr)}
 .macro{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border-radius:10px;overflow:hidden;border:1px solid var(--line)}

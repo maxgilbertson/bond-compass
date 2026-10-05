@@ -51,12 +51,17 @@ def save():
 
 def main():
     """The daily job: save today's yields, then every score, and make the monthly practice-portfolio picks."""
+    import alerts
     import bonds
     import tracking
     save()
     data = bonds.build()
     if len(data["rows"]) < 25:
         raise SystemExit(f"only {len(data['rows'])} markets loaded; not saving scores")
+    text = alerts.note(alerts.compare(data), tracking.today_key())
+    if text:  # the daily job posts this as a GitHub issue, then deletes it
+        (ROOT / "alerts-today.md").write_text(text, encoding="utf-8")
+        print(text)
     tracking.write_snapshot(data)
     if tracking.maybe_rebalance(data["rows"]):
         print("new monthly picks:", ", ".join(tracking.load_paper()["rebalances"][-1]["top"]))

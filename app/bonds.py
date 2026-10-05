@@ -11,6 +11,7 @@ from datetime import date, datetime, timezone
 
 import bondmath
 import backtest
+import calendar_events
 import markets
 import perf
 import snapshot
@@ -421,10 +422,26 @@ def build():
             if len(cpts) >= 2:
                 snaps[k] = [[round(x, 3), y] for x, y in cpts]
         r["curve"] = {"now": [[b["yrs"], b["y"]] for b in bs if not b.get("outlier")], **snaps}
+        # a smooth fitted curve: each bond's distance from it shows whether it looks cheap or dear next to its
+        # neighbours, and the curve implies what rates the market expects in future (forward rates)
+        fit = bondmath.fit_curve([(b["yrs"], b["y"]) for b in bs if not b.get("outlier")])
+        if fit and fit["rmse"] < 0.35:
+            longest = max(b["yrs"] for b in bs if not b.get("outlier"))
+            for b in bs:
+                b["rv"] = round((b["y"] - bondmath.curve_at(fit, b["yrs"])) * 100, 1)
+            fwd = {}
+            for k, a_, b_ in (("1y1y", 1, 2), ("2y1y", 2, 3), ("2y2y", 2, 4), ("5y5y", 5, 10), ("10y10y", 10, 20)):
+                if longest >= b_ - 0.5 and min(x["yrs"] for x in bs) <= max(a_, 1):
+                    fwd[k] = round(bondmath.forward(fit, a_, b_), 3)
+            xs = [x for x in (0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 40, 50)
+                  if min(b["yrs"] for b in bs) * 0.9 <= x <= longest * 1.02]
+            r["fit"] = {"rmse": round(fit["rmse"] * 100, 1), "fwd": fwd,
+                        "pts": [[x, round(bondmath.curve_at(fit, x), 3)] for x in xs]}
         # slope changes over a month, from the history of the same maturities
         h2, h10 = next((b for b in bs if b["tenor"] == "2Y" and b["hist"]), None), next((b for b in bs if b["tenor"] == "10Y" and b["hist"]), None)
         if h2 and h10:
             then = lambda days: bp(at_or_before(h10["_h"], now - days * DAY), at_or_before(h2["_h"], now - days * DAY))
+            r["slopes"]["s2s10_1w"] = then(7)
             r["slopes"]["s2s10_1m"] = then(30)
             r["slopes"]["s2s10_1y"] = then(365)
         # market's view of rates: how far the 2-year yield sits above (hikes priced) or below (cuts) cash
@@ -532,12 +549,31 @@ def build():
         "generated": now, "marketTime": max(times) if times else now, "rows": rows,
         "credit": credit, "move": move_b, "weights": WEIGHTS,
         "paper": paper, "changes": sig_log, "backtest": bt, "btWeights": backtest.PARTS,
+        "health": health(rows, Q, pts, errors, {"imf": imf_at, "fred": fred_at, "bis": bis_at}, rts_checked, now),
+        "calendar": calendar_events.upcoming(days=45),
         "rules": backdrop(rows, credit, move_b),
         "sources": {"imfAt": imf_at, "fredAt": fred_at, "bisAt": bis_at, "ratingsChecked": rts_checked,
                     "imfYear": year},
         "errors": errors + [f"no quote: {s}" for r in markets.MARKETS for _, s, _ in pts[r[0]] if s not in Q and s not in H][:40],
     }
     return out
+
+
+def health(rows, Q, pts, errors, ats, ratings_checked, now):
+    """What might be wrong with today's data, so problems are visible rather than silent."""
+    stale, outliers, live_only = [], [], []
+    for r in rows:
+        for b in r["bonds"]:
+            if b.get("stale"):
+                stale.append({"code": r["code"], "name": r["name"], "tenor": b["tenor"], "time": b.get("time")})
+            if b.get("outlier"):
+                outliers.append({"code": r["code"], "name": r["name"], "tenor": b["tenor"], "y": b["y"]})
+            if not b.get("hist"):
+                live_only.append(f"{r['code']} {b['tenor']}")
+    n_syms = sum(len(p) for p in pts.values())
+    return {"quotes": len(Q), "symbols": n_syms, "stale": stale, "outliers": outliers, "liveOnly": len(live_only),
+            "problems": errors, "sourceAge": {k: (now - v) / 3600 if v else None for k, v in ats.items()},
+            "ratingsChecked": ratings_checked}
 
 
 def credit_block(fred, now):

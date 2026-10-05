@@ -21,7 +21,7 @@ CACHE_SECONDS = 300
 HERE = Path(__file__).parent
 PAGES = {"index.html", "common.css", "common.js"}  # the files the site is made of
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-         ".json": "application/json"}
+         ".json": "application/json", ".md": "text/markdown; charset=utf-8"}
 CODES = {m[0] for m in markets.MARKETS}
 
 _cache = {"at": 0, "body": None}
@@ -67,6 +67,9 @@ class Handler(BaseHTTPRequestHandler):
                 if code not in CODES:
                     return self._send(404, b"not found", "text/plain")
                 self._send(200, dumps(bonds.country_history(code)), "application/json")
+            elif name.startswith("briefings/") and ".." not in name and Path(name).suffix in (".json", ".md") \
+                    and (HERE.parent / "data" / name).is_file():
+                self._send(200, (HERE.parent / "data" / name).read_bytes(), TYPES[Path(name).suffix])
             elif name in PAGES:
                 self._send(200, (HERE / name).read_bytes(), TYPES[Path(name).suffix])
             else:

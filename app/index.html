@@ -35,6 +35,8 @@
   <button type="button" data-view="countries">Countries</button>
   <button type="button" data-view="credit">Credit &amp; inflation</button>
   <button type="button" data-view="banks">Central banks</button>
+  <button type="button" data-view="portfolio">Portfolio</button>
+  <button type="button" data-view="briefing">Briefing</button>
   <button type="button" data-view="record">Track record</button>
   <button type="button" data-view="guide">Guide</button>
 </div></nav>
@@ -131,6 +133,7 @@ const C = {
   mod:{l:"Duration",s:"modified",g:(r,b)=>b&&b.mod,f:v=>`<span class="num">${num(v,2)}</span>`,t:"Modified duration: the % change in price for a 1 percentage-point change in yield. A duration of 8 means a 1% rise in yield cuts the price by about 8%."},
   conv:{l:"Convexity",g:(r,b)=>b&&b.conv,f:v=>`<span class="num">${num(v,1)}</span>`,t:"How duration itself changes as yields move. Higher convexity cushions losses when yields rise and adds to gains when they fall."},
   dv01:{l:"DV01",s:"per 1m",g:(r,b)=>b&&b.dv01,f:(v,r)=>`<span class="num">${isNum(v)?Math.round(v).toLocaleString():"–"}</span>`,t:"Money gained or lost on 1,000,000 of face value for a 1bp move in yield, in the bond's own currency."},
+  rv:{l:"vs curve",s:"bp",g:(r,b)=>b&&b.rv,f:v=>`<span class="num ${isNum(v)&&Math.abs(v)>=8?(v>0?"pos":"neg"):""}">${bpf(v,true,false)}</span>`,t:"How far this bond's yield sits above (+, looks cheap) or below (−, looks dear) a smooth curve fitted through all of the country's maturities."},
   vol:{l:"Volatility",s:"bp a year",g:(r,b)=>b&&b.vol,f:v=>`<span class="num">${isNum(v)?v:"–"}</span>`,t:"How much the yield typically moves in a year (annualised standard deviation of daily changes over the last 3 months), in bp."},
   cash:{l:"Cash rate",g:r=>r.cash&&r.cash.rate,f:(v,r)=>`<span class="num" title="${r.cash&&r.cash.src==="bill"?`No policy-rate feed: shortest bill yield (${r.cash.tenor})`:"Central bank policy rate"}">${yld(v)}${r.cash&&r.cash.src==="bill"?"*":""}</span>`,t:"The central bank's policy rate: what cash earns. * = shortest bill yield where there's no policy-rate feed."},
   roll:{l:"Roll-down",s:"bp",g:(r,b)=>b&&b.roll,f:v=>`<span class="num">${bpf(v,true,false)}</span>`,t:"How much lower the yield would be a year from now if the curve stayed put, as the bond becomes a 1-year-shorter bond. Positive = a price gain from ageing."},
@@ -170,7 +173,7 @@ const C = {
 const COLSETS = {
   key:{label:"Key",cols:["score","d1wS","signal","y","chg","d1m","realY","hedgedGbp","s2s10","rating","debt","spark"]},
   changes:{label:"Yield moves",cols:["y","chg","d1w","d1m","d3m","ytd","d1y","d3y","range","z1y","pct3y"]},
-  risk:{label:"Bond & risk",cols:["y","coupon","mat","price","mod","conv","dv01","vol","z1y"]},
+  risk:{label:"Bond & risk",cols:["y","coupon","mat","price","mod","conv","dv01","vol","rv","z1y"]},
   carry:{label:"Carry",cols:["y","cash","roll","ret12","excess","breakeven","hedgedGbp","hedgedUsd","expects"]},
   spreads:{label:"Spreads & real",cols:["y","vsUS","vsDE","vsGB","realY","infl","rating"]},
   fiscal:{label:"Public finances",cols:["rating","debt","debt5","balance","primary","interest","intRev","effRate","refi","rg","gap","growth"]},
@@ -192,13 +195,15 @@ function render(){
     <div class="view" data-view="countries">${countriesHTML()}</div>
     <div class="view" data-view="credit">${creditHTML(d)}</div>
     <div class="view" data-view="banks">${banksHTML()}</div>
+    <div class="view" data-view="portfolio">${portfolioHTML()}</div>
+    <div class="view" data-view="briefing">${briefingHTML()}</div>
     <div class="view" data-view="record">${recordHTML(d)}</div>
     <div class="view" data-view="guide">${guideHTML(d)}</div>
     <p class="disclaimer">For research and education only; not investment advice. Yields from CNBC (Tradeweb and other dealer quotes, delayed); history rebuilt from CNBC daily closes;
       public finances from the IMF World Economic Outlook and Fiscal Monitor; central-bank rates from the Bank for International Settlements; credit spreads, TIPS and breakevens
       from FRED (ICE BofA indices); credit ratings from Wikipedia's table of S&amp;P, Moody's and Fitch ratings (checked ${esc(d.sources.ratingsChecked||"–")}). Analytics use simplified conventions and settle today.</p>`;
   restoreOpen();
-  bindControls();
+  bindControls(); bindPortfolio(); bindPair();
   bindTips(document);
   Views.apply();
 }
@@ -251,6 +256,7 @@ function overviewHTML(d){
     <div class="macro">${tiles.join("")}</div></section>
   <section>${secHead({eyebrow:"Backdrop",title:"What's driving bonds",lead:"Fixed rules applied to today's numbers. Coloured rules are active now; grey ones are within normal ranges."})}
     <div class="rulegrid">${d.rules.map(x=>`<div class="card rule ${x.active?x.tone:"off"}"><div class="rule-head"><b>${esc(x.name)}</b>${x.active?tag(x.tone==="pos"?"Supportive":x.tone==="neg"?"Headwind":x.tone==="warn"?"Caution":"Notable",x.tone):tag("Normal")}</div><p>${esc(x.note)}</p></div>`).join("")}</div></section>
+  ${d.calendar&&d.calendar.length?`<section>${secHead({eyebrow:"Calendar",title:"Coming up",lead:"Central-bank decisions and the data releases that move bond yields most, over the next few weeks."})}${calendarHTML(d.calendar,{limit:10,title:"Next events"})}</section>`:""}
   <section>${secHead({eyebrow:"Shortlists",title:"Where the numbers point",lead:"Four ways to cut the list. Investment grade = rated BBB− or better on average. Click any market for the reasons behind it."})}
     <div class="picks">
       <div class="card pickcol"><h3><span class="pc-ico accent">${icon("award",16)}</span>Highest scores</h3><p>Best mix of value and safety.</p>${top.map(r=>pick(r,Math.round(r.m.score),"score",sub(r))).join("")}</div>
@@ -314,10 +320,11 @@ function curvesHTML(){
     <div class="card chartbox"><div class="row">
       <div class="controls" id="curveChips">${S.curveSel.map((c,i)=>{ const r=byCode(c); return r?`<span class="tag" style="border-color:var(--s${i+1})"><i class="sw" style="background:var(--s${one?1:i+1});margin:0"></i>${esc(r.name)} <button type="button" class="btn" data-rm="${c}" style="padding:0 6px;font-size:12px;border:0" aria-label="Remove ${esc(r.name)}">×</button></span>`:""; }).join("")}
         ${S.curveSel.length<5?`<select id="curveAdd" aria-label="Add a country"><option value="">+ Add a country…</option>${opts.filter(r=>!S.curveSel.includes(r.code)).map(r=>`<option value="${r.code}">${esc(r.name)}</option>`).join("")}</select>`:""}</div>
-      ${one?`<span style="margin-left:auto" class="controls"><span class="seg-lab">Compare with</span><div class="seg" id="cmpSeg">${[["w1","1 week ago"],["m1","1 month ago"],["m3","3 months ago"],["y1","1 year ago"]].map(([k,l])=>`<button type="button" data-v="${k}" aria-pressed="${S.curveCmp.includes(k)}">${l}</button>`).join("")}</div></span>`:""}
+      ${one?`<span style="margin-left:auto" class="controls"><span class="seg-lab">Compare with</span><div class="seg" id="cmpSeg">${[["w1","1 week ago"],["m1","1 month ago"],["m3","3 months ago"],["y1","1 year ago"],["fit","Fitted curve"]].map(([k,l])=>`<button type="button" data-v="${k}" aria-pressed="${S.curveCmp.includes(k)}">${l}</button>`).join("")}</div></span>`:""}
     </div>
     <div id="curveChart"></div><div class="legend-row" id="curveLegend"></div>
     <p class="note">Maturities are spaced on a square-root scale so the short end is readable. Dots are the quoted bonds; lines in between are straight-line estimates.${one?" Past curves use the maturities that have a daily history.":""}</p></div></section>
+  ${pairHTML()}
   <section>${secHead({eyebrow:"Shape",title:"Curve slopes",lead:"How much extra yield longer bonds pay. Click a column to sort."})}
     <div class="tablebox" id="slopeTable">${slopeTable()}</div>
     ${more("slopehelp",`<ul><li><b>3m10y, 2s10s, 5s30s, 10s30s:</b> the long yield minus the short one, in bp. Positive = normal, upward-sloping; negative = inverted.</li>
@@ -361,7 +368,8 @@ function heatNote(){ return {level:"Darker blue = higher yield (scale tops out a
 function drawCurves(){
   const sets=[]; const one=S.curveSel.length===1;
   if(one){ const r=byCode(S.curveSel[0]); if(r){ sets.push({pts:r.curve.now,color:"var(--s1)",name:"Today",w:2.5,dots:true});
-    [["w1","1 week ago","var(--s5)"],["m1","1 month ago","var(--s2)"],["m3","3 months ago","var(--s4)"],["y1","1 year ago","var(--s3)"]].forEach(([k,l,c])=>{ if(S.curveCmp.includes(k)&&r.curve[k]) sets.push({pts:r.curve[k],color:c,name:l,dash:k==="y1"?"6 4":""}); }); } }
+    [["w1","1 week ago","var(--s5)"],["m1","1 month ago","var(--s2)"],["m3","3 months ago","var(--s4)"],["y1","1 year ago","var(--s3)"]].forEach(([k,l,c])=>{ if(S.curveCmp.includes(k)&&r.curve[k]) sets.push({pts:r.curve[k],color:c,name:l,dash:k==="y1"?"6 4":""}); });
+    if(S.curveCmp.includes("fit")&&r.fit) sets.push({pts:r.fit.pts,color:"var(--faint)",name:`Fitted curve (average miss ${r.fit.rmse}bp)`,dash:"2 3",w:1.4}); } }
   else S.curveSel.forEach((c,i)=>{ const r=byCode(c); if(r) sets.push({pts:r.curve.now,color:`var(--s${i+1})`,name:r.name,dots:true}); });
   curveChart($("#curveChart"),{sets,h:320});
   $("#curveLegend").innerHTML=sets.map(s=>`<span class="key"><i style="background:${s.color}" class="${s.dash?"dash":""}"></i>${esc(s.name)}</span>`).join("")+
@@ -531,6 +539,7 @@ function banksHTML(){
       <td><span class="num">${L?`${dateStr(L.t)} <span class="${L.to>L.from?"neg":"pos"}">${bpf((L.to-L.from)*100)}</span>`:"no change in 2 years"}</span></td>
       <td><span class="num ${ycls(x.p.d1y)}">${bpf(x.p.d1y,true,false)}</span></td><td><span class="num ${ycls(x.p.moves3m)}">${x.p.moves3m?bpf(x.p.moves3m,true,false):"–"}</span></td>
       <td><span class="num ${cls(real)}">${pp(real,1,true)}</span></td><td><span class="num">${x.two?yld(x.two.y):"–"}</span></td><td>${expectsText(x.expects,true)}</td><td><span class="num">${x.ten?yld(x.ten.y):"–"}</span></td></tr>`; }).join("")}</tbody></table></div>
+    ${(S.data.calendar||[]).some(e=>e.type==="central bank")?`<div style="margin-top:14px">${calendarHTML(S.data.calendar.filter(e=>e.type==="central bank"),{limit:12,title:"Next decisions"})}</div>`:""}
     <p class="note">Egypt and Nigeria have no policy-rate feed here; their cash rate uses the shortest Treasury-bill yield. Rates as published by the Bank for International Settlements (usually a few days behind).</p></section>
   <section><div class="card chartbox"><div class="row"><span class="eyebrow">Policy rates, past 2 years</span>
       <div class="controls" id="bankChips">${list.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<button type="button" class="tab" data-bank="${x.bank}" aria-pressed="${S.banks.includes(x.bank)}">${esc(x.bank==="XM"?"ECB":x.area)}</button>`).join("")}</div></div>
@@ -550,6 +559,16 @@ function drawBanks(){
 }
 
 /* ---------- guide */
+function healthHTML(d){ const h=d.health; if(!h) return "<p>Not available.</p>";
+  const age=v=>v==null?"–":v<1?"under an hour":v<48?`${Math.round(v)} hours`:`${Math.round(v/24)} days`;
+  const byMkt={}; h.stale.forEach(x=>{ (byMkt[x.name]=byMkt[x.name]||[]).push(x.tenor); });
+  return `<ul>
+    <li><b>Live quotes:</b> ${h.quotes} of the ${h.symbols} bonds followed returned a quote this time. ${h.liveOnly} maturities have no daily history yet (they shape the curves; the daily record is building their history).</li>
+    <li><b>Stale quotes</b> (no trade on the feed for 5+ days): ${Object.keys(byMkt).length?Object.entries(byMkt).map(([n,t])=>`${esc(n)} (${t.join(", ")})`).join("; "):"none"}. Usually a local holiday.</li>
+    <li><b>Left out of curves as outliers:</b> ${h.outliers.length?h.outliers.map(x=>`${esc(x.name)} ${x.tenor} at ${yld(x.y)}`).join("; "):"none"}.</li>
+    <li><b>Age of the slower sources:</b> IMF ${age(h.sourceAge.imf)}, central-bank rates ${age(h.sourceAge.bis)}, credit spreads ${age(h.sourceAge.fred)}; ratings checked ${esc(h.ratingsChecked||"–")}.</li>
+    <li><b>Problems this run:</b> ${h.problems.length?h.problems.map(esc).join("; "):"none"}.</li>
+    <li><b>Maths checks:</b> before every publish, the bond calculations are tested against textbook values (price, duration, accrued interest, DV01, curve fitting); a failure stops the publish so the last good version stays up.</li></ul>`; }
 function guideHTML(d){
   const w=d.weights;
   return `<section>${secHead({eyebrow:"Guide",title:"How to use Bond Compass",lead:"What each number means, how the score works and where the data comes from."})}
@@ -599,6 +618,7 @@ function guideHTML(d){
       <li><b>Corporate spreads, TIPS, breakevens:</b> FRED (St. Louis Fed), from ICE BofA indices and the US Treasury; daily, a day behind.</li>
       <li><b>MOVE index and currencies:</b> Yahoo Finance.</li>
       <li><b>Credit ratings:</b> S&amp;P, Moody's and Fitch, from Wikipedia's maintained table, checked weekly (last ${esc(d.sources.ratingsChecked||"–")}).</li></ul>`)}
+    ${fold("g-health",`Data health <small>${d.health?`${d.health.quotes} of ${d.health.symbols} quotes live${d.health.stale.length?` · ${new Set(d.health.stale.map(x=>x.code)).size} markets with stale quotes`:""}`:""}</small>`,healthHTML(d))}
     ${fold("g-limits","Limits <small>read before acting</small>",`<ul>
       <li>Analytics use simplified conventions: actual/actual day count, settlement today, each market's usual coupon frequency. Good for comparing; not for settling a trade.</li>
       <li>Benchmark bonds change when governments issue new ones; a jump in coupon or maturity in the tables usually means the benchmark rolled.</li>
@@ -607,6 +627,154 @@ function guideHTML(d){
       <li>Returns are rebuilt from yields, not taken from an index or fund.</li>
       <li>Nothing here is advice. Bonds can and do lose money, especially long-dated ones when yields rise.</li></ul>`)}
   </div></section>`;
+}
+
+/* ---------- portfolio: what a set of holdings earns and how it reacts to shocks */
+const PORT_DEFAULT=[{c:"GB",t:"10Y",amt:20000,h:false},{c:"US",t:"10Y",amt:10000,h:true},{c:"DE",t:"30Y",amt:5000,h:true},{c:"GB",t:"2Y",amt:10000,h:false}];
+S.port = store.get("port", PORT_DEFAULT);
+const SCEN = [
+  {k:"up1",l:"All yields up 1 percentage point",dy:(r,y)=>1},
+  {k:"dn1",l:"All yields down 1 percentage point",dy:(r,y)=>-1},
+  {k:"up05",l:"All yields up 0.5",dy:(r,y)=>0.5},
+  {k:"steep",l:"Curves steepen (2-year −0.5, 10-year +0.25, 30-year +0.5)",dy:(r,y)=>y<=2?-0.5:y<=10?-0.5+(y-2)/8*0.75:Math.min(0.5,0.25+(y-10)/20*0.25)},
+  {k:"flat",l:"Curves flatten (2-year +0.5, 10-year −0.25, 30-year −0.5)",dy:(r,y)=>y<=2?0.5:y<=10?0.5-(y-2)/8*0.75:Math.max(-0.5,-0.25-(y-10)/20*0.25)},
+  {k:"gilts",l:"Gilt sell-off like 2022 (UK +1.25, elsewhere +0.25)",dy:(r,y)=>r.code==="GB"?1.25:0.25},
+  {k:"euro",l:"Euro-area stress (Italy, Spain, Portugal, Greece, France +1; Germany −0.25)",dy:(r,y)=>["IT","ES","PT","GR","FR"].includes(r.code)?1:r.code==="DE"?-0.25:0},
+  {k:"em",l:"Emerging-market sell-off (emerging +2; US and Germany −0.25)",dy:(r,y)=>!r.dm?2:["US","DE"].includes(r.code)?-0.25:0},
+  {k:"gbpUp",l:"The pound rises 10% against every currency",fx:1/1.1-1},
+  {k:"gbpDn",l:"The pound falls 10% against every currency",fx:1/0.9-1},
+];
+function portRows(){ return S.port.map((p,i)=>{ const r=byCode(p.c); const b=r&&(r.bonds.find(x=>x.tenor===p.t)||B(r)); return {...p,i,r,b}; }).filter(x=>x.r&&x.b); }
+function portfolioHTML(){
+  const opts=rows().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const H=portRows(), tot=H.reduce((a,x)=>a+(+x.amt||0),0);
+  const yOf=x=>x.h&&x.r.code!=="GB"?x.b.hedgedGbp:x.b.y, retOf=x=>x.b.ret12+(x.h&&x.r.code!=="GB"&&isNum(x.b.hedgedGbp)?x.b.hedgedGbp-x.b.y:0);
+  const wavg=f=>tot?H.reduce((a,x)=>a+(+x.amt||0)*(f(x)??0),0)/tot:null;
+  const dv01=H.reduce((a,x)=>a+(+x.amt||0)*x.b.dirty/100*x.b.mod*0.0001,0);
+  const fxExp={}; H.forEach(x=>{ if(!x.h&&x.r.ccy!=="GBP") fxExp[x.r.ccy]=(fxExp[x.r.ccy]||0)+(+x.amt||0); });
+  const pnl=(x,sc)=>{ const a=+x.amt||0; if(sc.fx!=null) return x.h||x.r.ccy==="GBP"?0:a*sc.fx; const dy=sc.dy(x.r,x.b.yrs)/100; return a*x.b.dirty/x.b.price*(-x.b.mod*dy+0.5*x.b.conv*dy*dy); };
+  const scen=SCEN.map(sc=>({sc,v:H.reduce((a,x)=>a+pnl(x,sc),0)})), mx=Math.max(1,...scen.map(s=>Math.abs(s.v)));
+  const money=v=>(v<0?"−":"")+"£"+Math.abs(Math.round(v)).toLocaleString();
+  return `<section>${secHead({eyebrow:"Portfolio",title:"Try out a set of holdings",lead:"Enter bonds you hold or are considering (benchmark government bonds, amounts in pounds). See what they pay, how sensitive they are, and what would happen in a sell-off. Saved in this browser only."})}
+    <div class="tablebox port"><table><thead><tr><th class="l">Market</th><th class="l">Maturity</th><th>Amount (£)</th><th title="Currency hedged back to pounds">Hedged to £</th><th>Yield</th><th>Duration</th><th title="Pounds gained or lost per 0.01% move in yield">£ per bp</th><th>If yields +1%</th><th></th></tr></thead><tbody>
+    ${H.map(x=>`<tr><td class="l"><select data-pc="${x.i}" aria-label="Market">${opts.map(r=>`<option value="${r.code}" ${r.code===x.c?"selected":""}>${esc(r.name)}</option>`).join("")}</select></td>
+      <td class="l"><select data-pt="${x.i}" aria-label="Maturity">${x.r.bonds.filter(b=>!b.outlier).map(b=>`<option value="${b.tenor}" ${b.tenor===x.b.tenor?"selected":""}>${b.tenor} (${yld(b.y)})</option>`).join("")}</select></td>
+      <td><input type="number" min="0" step="1000" value="${+x.amt||0}" data-pa="${x.i}" aria-label="Amount in pounds"></td>
+      <td>${x.r.ccy==="GBP"?'<span class="muted">£ already</span>':`<input type="checkbox" data-ph="${x.i}" ${x.h?"checked":""} aria-label="Hedge the currency">`}</td>
+      <td><span class="num">${yld(yOf(x))}</span>${x.h&&x.r.code!=="GB"?`<small class="muted"> (${yld(x.b.y)} local)</small>`:""}</td><td><span class="num">${num(x.b.mod,1)}</span></td>
+      <td><span class="num">£${num((+x.amt||0)*x.b.dirty/100*x.b.mod*0.0001,2)}</span></td><td><span class="num neg">${money(pnl(x,SCEN[0]))}</span></td>
+      <td><button type="button" class="btn" data-pr="${x.i}" style="padding:2px 8px" aria-label="Remove">×</button></td></tr>`).join("")}</tbody></table></div>
+    <div class="toolbar" style="margin-top:8px"><button type="button" class="btn" id="portAdd">+ Add a holding</button><button type="button" class="btn" id="portReset">Reset to the example</button></div>
+    <div class="kpis" style="margin-top:6px">
+      <div class="kpi"><span>Total</span><b>£${Math.round(tot).toLocaleString()}</b><small>${H.length} holdings</small></div>
+      <div class="kpi"><span>Average yield</span><b>${yld(wavg(yOf))}</b><small>hedged yields where hedged; ${yld(wavg(retOf))} over 12 months if yields don't move (with roll-down)</small></div>
+      <div class="kpi"><span>Duration</span><b>${num(wavg(x=>x.b.mod),1)}</b><small>a 1% rise in all yields costs about ${num(wavg(x=>x.b.mod),1)}% (${money(-dv01*100)})</small></div>
+      <div class="kpi"><span>Currency risk</span><b>${Object.keys(fxExp).length?money(Object.values(fxExp).reduce((a,b)=>a+b,0)):"None"}</b><small>${Object.keys(fxExp).length?"unhedged in "+Object.entries(fxExp).map(([c,v])=>`${c} ${money(v)}`).join(", "):"everything is in pounds or hedged"}</small></div></div>
+  </section>
+  <section>${secHead({eyebrow:"What if",title:"How the portfolio reacts to shocks",lead:"An instant move, valued with each bond's duration and convexity. It leaves out the income earned while the move happens, and assumes hedges are reset."})}
+    <div class="tablebox scen"><table><thead><tr><th class="l">Scenario</th><th>Gain or loss</th><th>% of total</th><th class="l"></th></tr></thead><tbody>
+    ${scen.map(({sc,v})=>`<tr style="cursor:default"><td class="l" style="white-space:normal">${esc(sc.l)}</td><td><b class="num ${cls(v)}">${money(v)}</b></td><td><span class="num ${cls(v)}">${tot?pct(v/tot,1):"–"}</span></td>
+      <td class="l bar"><span class="pnlbar" style="width:${Math.round(Math.abs(v)/mx*150)}px;background:${v>=0?"var(--dpos)":"var(--dneg)"}"></span></td></tr>`).join("")}</tbody></table></div>
+    ${more("porthelp",`<ul><li><b>Duration</b> sets most of the risk: a duration of 8 loses about 8% if yields rise 1 percentage point. <b>Convexity</b> trims losses and adds to gains for big moves.</li>
+      <li><b>Hedged</b> holdings earn the bond's yield plus the gap between UK and local short-term rates (shown as the hedged yield), and don't move with the currency. <b>Unhedged</b> ones earn the local yield but gain or lose with the currency.</li>
+      <li>Scenarios are illustrations, not forecasts. Real sell-offs rarely move every yield by the same amount.</li></ul>`,"How this works")}</section>`;
+}
+function bindPortfolio(){
+  const save=()=>{ store.set("port",S.port); const v=document.querySelector('[data-view="portfolio"]'); v.innerHTML=portfolioHTML(); restoreOpen(v); bindPortfolio(); };
+  document.querySelectorAll("[data-pc]").forEach(e=>e.onchange=()=>{ const p=S.port[+e.dataset.pc]; p.c=e.value; const r=byCode(p.c); p.t=r.bonds.some(b=>b.tenor===p.t)?p.t:r.bench; save(); });
+  document.querySelectorAll("[data-pt]").forEach(e=>e.onchange=()=>{ S.port[+e.dataset.pt].t=e.value; save(); });
+  document.querySelectorAll("[data-pa]").forEach(e=>e.onchange=()=>{ S.port[+e.dataset.pa].amt=Math.max(0,+e.value||0); save(); });
+  document.querySelectorAll("[data-ph]").forEach(e=>e.onchange=()=>{ S.port[+e.dataset.ph].h=e.checked; save(); });
+  document.querySelectorAll("[data-pr]").forEach(e=>e.onclick=()=>{ S.port.splice(+e.dataset.pr,1); save(); });
+  $("#portAdd")&&($("#portAdd").onclick=()=>{ S.port.push({c:"US",t:"10Y",amt:10000,h:true}); save(); });
+  $("#portReset")&&($("#portReset").onclick=()=>{ S.port=PORT_DEFAULT.map(x=>({...x})); save(); });
+}
+
+/* ---------- spread between any two markets, and forward rates */
+S.pairA=store.get("pairA","IT"); S.pairB=store.get("pairB","DE"); S.pairT=store.get("pairT","10Y"); S.pairR=store.get("pairR","3");
+function pairHTML(){
+  const opts=rows().slice().sort((a,b)=>a.name.localeCompare(b.name)).map(r=>`<option value="${r.code}">${esc(r.name)}</option>`).join("");
+  return `<section>${secHead({eyebrow:"Spreads",title:"The gap between any two markets",lead:"How much more one government pays than another at the same maturity, over time. A widening gap usually means investors are worrying more about the first."})}
+    <div class="card chartbox"><div class="row"><select id="pairA" aria-label="First market">${opts}</select><span class="muted">minus</span><select id="pairB" aria-label="Second market">${opts}</select>
+      ${seg("pairT",[["2Y","2-year"],["5Y","5-year"],["10Y","10-year"],["30Y","30-year"]],S.pairT)}${seg("pairR",[["1","1y"],["3","3y"],["5","5y"],["0","Since 2016"]],S.pairR)}</div>
+      <div id="pairChart"><p class="muted">Loading…</p></div><p class="note" id="pairNote"></p></div></section>
+  <section>${secHead({eyebrow:"Forward rates",title:"What each curve implies for future rates",lead:"From a smooth curve fitted through each country's yields: the rate for borrowing in the future that today's yields lock in. 1y1y = a 1-year rate starting in a year's time; 5y5y = a 5-year rate starting in 5 years."})}
+    <div class="tablebox"><table><thead><tr><th class="l sticky">Country</th><th>Cash rate</th><th>2-year</th><th title="1-year rate, one year from now">1y1y</th><th title="1-year rate, two years from now">2y1y</th><th title="2-year rate, two years from now">2y2y</th><th>10-year</th><th title="5-year rate, five years from now">5y5y</th><th title="10-year rate, ten years from now">10y10y</th><th title="How closely the fitted curve matches the quoted yields (average miss)">Fit error</th></tr></thead>
+    <tbody>${rows().filter(r=>r.fit).sort((a,b)=>a.name.localeCompare(b.name)).map(r=>{ const f=r.fit.fwd, two=r.bonds.find(b=>b.tenor==="2Y"), ten=r.bonds.find(b=>b.tenor==="10Y");
+      return `<tr data-open="${r.code}"><td class="l sticky"><b>${esc(r.name)}</b></td><td><span class="num">${yld(r.cash&&r.cash.rate)}</span></td><td><span class="num">${two?yld(two.y):"–"}</span></td>
+      ${["1y1y","2y1y","2y2y"].map(k=>`<td><span class="num">${yld(f[k])}</span></td>`).join("")}<td><span class="num">${ten?yld(ten.y):"–"}</span></td>${["5y5y","10y10y"].map(k=>`<td><span class="num">${yld(f[k])}</span></td>`).join("")}<td><span class="num muted">${r.fit.rmse}bp</span></td></tr>`; }).join("")}</tbody></table></div>
+    <p class="note">Forward rates treat the fitted yields as zero-coupon rates, a close approximation. They include a premium for the risk of lending for longer, so they're higher than pure rate expectations. Countries with fewer than five quoted maturities aren't fitted.</p></section>`;
+}
+async function drawPair(){
+  const el=$("#pairChart"); if(!el) return; $("#pairA").value=S.pairA; $("#pairB").value=S.pairB;
+  let A,Bh; try{ [A,Bh]=await Promise.all([loadHist(S.pairA),loadHist(S.pairB)]); }catch(e){ el.innerHTML='<p class="muted">History unavailable.</p>'; return; }
+  const sa=A.series[S.pairT], sb=Bh.series[S.pairT], ra=byCode(S.pairA), rb=byCode(S.pairB);
+  if(!sa||!sb){ el.innerHTML=`<p class="muted">${esc(!sa?ra.name:rb.name)} has no daily history at the ${tenorWord(S.pairT)} maturity. Try another maturity.</p>`; $("#pairNote").textContent=""; return; }
+  const since=S.pairR==="0"?0:Date.now()/1000-(+S.pairR)*365.25*86400, cut=s=>s.filter(p=>p[0]>=since);
+  const AL=align([cut(sa),cut(sb)]), v=AL.v[0].map((x,i)=>x!=null&&AL.v[1][i]!=null?(x-AL.v[1][i])*100:null), ok=v.filter(x=>x!=null);
+  if(ok.length<5){ el.innerHTML='<p class="muted">Not enough overlapping history.</p>'; return; }
+  const avg=ok.reduce((a,b)=>a+b,0)/ok.length, now=ok[ok.length-1], below=ok.filter(x=>x<now).length/ok.length;
+  lineChart(el,{t:AL.t,series:[{v,color:"var(--s2)",name:`${ra.name} minus ${rb.name}`,w:2}],h:260,fmt:x=>x.toFixed(0)+"bp",baseline:avg,baselineLabel:`average ${avg.toFixed(0)}bp`,area:1});
+  $("#pairNote").textContent=`${ra.name}'s ${tenorWord(S.pairT)} yield minus ${rb.name}'s: now ${now.toFixed(0)}bp, average ${avg.toFixed(0)}bp, range ${Math.min(...ok).toFixed(0)} to ${Math.max(...ok).toFixed(0)}bp. Higher than ${Math.round(below*100)}% of days in this period.`;
+}
+function bindPair(){
+  const go=()=>{ S.pairA=$("#pairA").value; S.pairB=$("#pairB").value; store.set("pairA",S.pairA); store.set("pairB",S.pairB); drawPair(); };
+  $("#pairA")&&($("#pairA").onchange=go); $("#pairB")&&($("#pairB").onchange=go);
+  bindSeg("pairT",v=>{ S.pairT=v; store.set("pairT",v); document.querySelectorAll("#pairT button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); drawPair(); });
+  bindSeg("pairR",v=>{ S.pairR=v; store.set("pairR",v); document.querySelectorAll("#pairR button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); drawPair(); });
+}
+
+/* ---------- coming up: central-bank decisions and key data */
+function calendarHTML(list,{limit=12,title="Coming up"}={}){
+  if(!list||!list.length) return "";
+  return `<div class="card panel"><div class="eyebrow" style="margin-bottom:6px">${esc(title)}</div><div class="cal">${list.slice(0,limit).map(e=>`<div class="ev"><b>${esc(isoDate(e.date,false))}</b><span>${e.type==="central bank"?icon("banks",13):icon("gauge",13)} <b style="font-family:var(--body);font-weight:600">${esc(e.who)}</b> ${esc(e.what)}</span></div>`).join("")}</div>
+    <p class="note">From each central bank's and statistics office's published calendar.</p></div>`;
+}
+
+/* ---------- weekly briefing */
+const BRIEF = {index:null, sel:null, text:{}};
+function inlineMd(s){ return esc(s).replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/\*([^*]+)\*/g,"<i>$1</i>").replace(/`([^`]+)`/g,"<code>$1</code>"); }
+function md(text){
+  const out=[]; let list=null, para=[];
+  const flush=()=>{ if(para.length){ out.push(`<p>${inlineMd(para.join(" "))}</p>`); para=[]; } if(list){ out.push(`<ul>${list.join("")}</ul>`); list=null; } };
+  for(const raw of text.split(/\r?\n/)){
+    const line=raw.trimEnd();
+    if(!line.trim()){ flush(); continue; }
+    const h=line.match(/^(#{3,4})\s+(.*)$/); if(h){ flush(); out.push(`<h4>${inlineMd(h[2])}</h4>`); continue; }
+    const li=line.match(/^\s*[-*]\s+(.*)$/);
+    if(li){ if(para.length){ out.push(`<p>${inlineMd(para.join(" "))}</p>`); para=[]; } (list=list||[]).push(`<li>${inlineMd(li[1])}</li>`); continue; }
+    if(list) flush();
+    para.push(line.trim());
+  }
+  flush(); return out.join("");
+}
+function briefParse(text){
+  const lines=text.replace(/<!--[\s\S]*?-->/g,"").split(/\r?\n/); let title="", pre=[], secs=[], cur=null;
+  for(const l of lines){ const h1=l.match(/^#\s+(.*)$/), h2=l.match(/^##\s+(.*)$/);
+    if(h1&&!title){ title=h1[1]; continue; } if(h2){ cur={title:h2[1],lines:[]}; secs.push(cur); continue; } (cur?cur.lines:pre).push(l); }
+  return {title, pre:pre.join("\n"), secs:secs.map(s=>({title:s.title, body:s.lines.join("\n")}))};
+}
+function briefingHTML(){
+  return `<section>${secHead({eyebrow:"Weekly briefing",title:"The week in bonds",lead:"Written every Saturday from that week's numbers: a plain-English round-up of yields, credit, central banks, scores and the practice portfolios.",
+    right:`<select id="briefSel" aria-label="Choose a week"><option>Loading…</option></select>`})}<div class="brief" id="briefBody"><p class="muted">Loading the latest briefing…</p></div></section>`;
+}
+async function drawBriefing(){
+  const base=STATIC?"briefings/":"/briefings/", el=$("#briefBody"), sel=$("#briefSel"); if(!el) return;
+  try{
+    if(!BRIEF.index) BRIEF.index=await (await fetch(base+"index.json?t="+Date.now(),{cache:"no-store"})).json();
+  }catch(e){ el.innerHTML='<p class="muted">No briefing has been published yet. The first one appears on Saturday morning.</p>'; sel.innerHTML=""; return; }
+  const idx=BRIEF.index; if(!idx.length){ el.innerHTML='<p class="muted">No briefing yet.</p>'; return; }
+  if(!BRIEF.sel) BRIEF.sel=idx[0].date;
+  sel.innerHTML=idx.map(e=>`<option value="${esc(e.date)}" ${e.date===BRIEF.sel?"selected":""}>${esc(e.title)}${e.author==="Claude"?"":" (draft)"}</option>`).join("");
+  sel.onchange=()=>{ BRIEF.sel=sel.value; drawBriefing(); };
+  const entry=idx.find(e=>e.date===BRIEF.sel)||idx[0];
+  try{ if(!BRIEF.text[entry.date]) BRIEF.text[entry.date]=await (await fetch(base+entry.file+"?t="+Date.now(),{cache:"no-store"})).text(); }
+  catch(e){ el.innerHTML='<p class="muted">That briefing could not be loaded.</p>'; return; }
+  const B2=briefParse(BRIEF.text[entry.date]);
+  const by=entry.author==="Claude"?"Written by Claude from the week's numbers":"Automatic factual draft; the full write-up follows on Saturday morning";
+  el.innerHTML=`<div><h3 style="font-size:24px">${esc(B2.title)}</h3><p class="muted" style="margin:4px 0 0;font-size:13px">${esc(by)} · numbers as of ${esc(isoDate(entry.date,true))}</p></div>
+    ${B2.pre.trim()?`<div class="card">${md(B2.pre)}</div>`:""}
+    ${B2.secs.map(x=>`<div class="card ${/in brief/i.test(x.title)?"lead":""}"><h3>${inlineMd(x.title)}</h3>${md(x.body)}</div>`).join("")}`;
 }
 
 /* ---------- track record: the test on past data, practice portfolios, signal changes */
@@ -713,7 +881,7 @@ function standouts(r){
   return out;
 }
 function bondTable(r){
-  const cols=["y","chg","d1m","ytd","coupon","mat","price","mod","conv","dv01","roll","breakeven","hedgedGbp","realY","vsUS","vsDE","pct3y"];
+  const cols=["y","chg","d1m","ytd","coupon","mat","price","mod","conv","dv01","roll","breakeven","rv","hedgedGbp","realY","vsUS","vsDE","pct3y"];
   return `<div class="tablebox"><table><thead><tr><th class="l sticky">Maturity</th>${cols.map(k=>`<th title="${esc(C[k].t)}">${esc(C[k].l)}${C[k].s?`<small>${esc(C[k].s)}</small>`:""}</th>`).join("")}</tr></thead>
     <tbody>${r.bonds.map(b=>`<tr class="${b.outlier?"dim":""}" style="cursor:default"><td class="l sticky"><b>${esc(b.tenor)}</b>${b.tenor===r.bench?' <small class="muted">bench</small>':""}${b.outlier?' <small class="warn" title="Far off the line through its neighbours; left out of the curve">outlier</small>':""}${!b.hist?' <small class="muted" title="Live quote only, no daily history">live</small>':""}</td>
       ${cols.map(k=>`<td>${C[k].f(C[k].g(r,b),r,b)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
@@ -744,6 +912,7 @@ function openDetail(code){
         ["1y return in £",pct(tr1(r,"y1","gbp"),1),`local ${pct(tr1(r,"y1","local"),1)} · hedged ${pct(tr1(r,"y1","hedged"),1)}`]])}
       ${so.length?`<div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:8px">What stands out</div><ul class="why">${so.map(([t,x])=>`<li><span class="${t}">●</span> ${esc(x)}</li>`).join("")}</ul></div>`:""}
       <div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:10px">Score ingredients (rank among ${rows().length} markets, 0–100)</div>${partsHTML(r)}</div>
+      ${r.m.path&&r.m.path.length>=2?`<div class="card chartbox"><div class="row"><span class="eyebrow">Score since the daily record began</span><span class="muted" style="font-size:12.5px">${isNum(r.m.d1w)?`${sgnN(r.m.d1w)} this week`:""}${isNum(r.m.d1m)?` · ${sgnN(r.m.d1m)} over 4 weeks`:""}</span></div><div id="dScore"></div></div>`:""}
     </div>
     <div class="dgrid" data-pane="bonds" hidden>
       <p class="muted" style="margin:0;font-size:13.5px">Every maturity quoted for ${esc(r.name)}. DV01 is in ${esc(ccyName(r.ccy))}s per 1,000,000 face value. Hover a column title for its meaning.</p>
@@ -751,6 +920,7 @@ function openDetail(code){
       <p class="note">* maturity estimated from the bucket. "live" = today's quote only (no history). Outliers sit far off the line through neighbouring maturities and are left out of the curve.</p></div>
     <div class="dgrid" data-pane="curve" hidden>
       <div class="card chartbox"><div class="row"><span class="eyebrow">Yield curve</span><span class="muted" style="font-size:12.5px">today vs 1 month and 1 year ago</span></div><div id="dCurve"></div><div class="legend-row" id="dCurveLeg"></div></div>
+      ${r.fit?facts([["1y1y",yld(r.fit.fwd["1y1y"]),"1-year rate in a year"],["2y2y",yld(r.fit.fwd["2y2y"]),"2-year rate in 2 years"],["5y5y",yld(r.fit.fwd["5y5y"]),"5-year rate in 5 years"],["10y10y",yld(r.fit.fwd["10y10y"]),"10-year rate in 10 years"],["Fit error",r.fit.rmse+"bp","average miss of the fitted curve"]]):""}
       ${facts([["3m10y",bpf(r.slopes.s3m10)],["2s10s",bpf(r.slopes.s2s10),isNum(r.slopes.s2s10_1m)?`${bpf(r.slopes.s2s10-r.slopes.s2s10_1m)} over 1m`:""],["5s30s",bpf(r.slopes.s5s30)],["10s30s",bpf(r.slopes.s10s30)],["Butterfly 2s5s10s",bpf(r.slopes.fly)],["Shape",esc(r.shape||"–")]])}</div>
     <div class="dgrid" data-pane="history" hidden>
       <div class="card chartbox"><div class="row"><span class="eyebrow">Yield history</span><select id="hTenor" aria-label="Maturity"></select>
@@ -774,8 +944,10 @@ function openDetail(code){
   bindDTabs(d,S.dtab,k=>{ S.dtab=k;
     if(k==="curve"){ const sets=[{pts:r.curve.now,color:"var(--s1)",name:"Today",w:2.5,dots:true}];
       if(r.curve.m1) sets.push({pts:r.curve.m1,color:"var(--s2)",name:"1 month ago"}); if(r.curve.y1) sets.push({pts:r.curve.y1,color:"var(--s3)",name:"1 year ago",dash:"6 4"});
+      if(r.fit) sets.push({pts:r.fit.pts,color:"var(--faint)",name:"Fitted curve",dash:"2 3",w:1.4});
       curveChart($("#dCurve"),{sets,h:280}); $("#dCurveLeg").innerHTML=sets.map(s=>`<span class="key"><i style="background:${s.color}" class="${s.dash?"dash":""}"></i>${esc(s.name)}</span>`).join(""); }
     if(k==="history") drawHistory(r);
+    if(k==="summary"&&r.m.path&&r.m.path.length>=2&&$("#dScore")) lineChart($("#dScore"),{t:r.m.path.map(p=>p[0]),series:[{v:r.m.path.map(p=>p[1]),color:scoreColor(r.m.score),name:"Score",w:2}],h:140,baseline:50,fmt:v=>v.toFixed(0)});
     if(k==="fiscal") drawFiscal(r);
     if(k==="policy"&&r.policy) lineChart($("#pChart"),{t:r.policy.series.map(p=>p[0]),series:[{v:r.policy.series.map(p=>p[1]),color:"var(--s1)",name:"Policy rate",w:2}],h:200,fmt:v=>v.toFixed(2)+"%"});
   });
@@ -852,15 +1024,15 @@ function bindControls(){
 function bindSort(){ document.querySelectorAll("#monTable th[data-sort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.sort;
   S.sort={k,dir:S.sort.k===k?-S.sort.dir:(k==="name"?1:-1)}; store.set("sort",S.sort); $("#monTable").innerHTML=monitorTable(); bindTips($("#monTable")); bindSort(); }); }
 function redrawMonitor(){ const v=document.querySelector('[data-view="monitor"]'); v.innerHTML=monitorHTML(); restoreOpen(v); bindControls(); bindTips(v); }
-function redrawCurves(){ const v=document.querySelector('[data-view="curves"]'); v.innerHTML=curvesHTML(); restoreOpen(v); bindControls(); bindTips(v); drawCurves(); }
+function redrawCurves(){ const v=document.querySelector('[data-view="curves"]'); v.innerHTML=curvesHTML(); restoreOpen(v); bindControls(); bindPair(); bindTips(v); drawCurves(); drawPair(); }
 function redrawBanks(){ const v=document.querySelector('[data-view="banks"]'); v.innerHTML=banksHTML(); bindControls(); drawBanks(); }
 
 /* ---------------------------------------------------------------- go */
 function drawOverview(){ const el=$("#ovScatter"); if(!el) return;
   scatterChart(el,{pts:rows().map(r=>({x:r.m.safety,y:r.m.value,label:r.code,key:r.code,color:r.dm?"var(--s1)":"var(--s2)",tip:`<b>${esc(r.name)}</b><br>Value ${Math.round(r.m.value)} · safety ${Math.round(r.m.safety)} · score ${Math.round(r.m.score)}`})),
     xlab:"Safety (0–100) →",ylab:"Value (0–100) →",xfmt:v=>v.toFixed(0),yfmt:v=>v.toFixed(0),fit:false,quad:vsQuad,h:330}); }
-Views.init(["overview","monitor","curves","countries","credit","banks","record","guide"],
-  {overview:drawOverview,curves:drawCurves,countries:()=>{drawMap();drawScatter();},credit:drawCredit,banks:drawBanks,record:drawRecord});
+Views.init(["overview","monitor","curves","countries","credit","banks","portfolio","briefing","record","guide"],
+  {overview:drawOverview,curves:()=>{drawCurves();drawPair();},countries:()=>{drawMap();drawScatter();},credit:drawCredit,banks:drawBanks,briefing:drawBriefing,record:drawRecord});
 let resizeT; addEventListener("resize",()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if(S.data) Views.apply(); },200); });
 startLoop({url:"bonds",onData:data=>{ S.data=data; render(); if(S.sel&&$("#drawer")) openDetail(S.sel); }});
 </script>

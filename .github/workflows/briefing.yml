@@ -1,23 +1,22 @@
-name: Daily record
+name: Weekly briefing facts
 
-# After the US close each weekday: save every market's closing yields and scores to data/history/,
-# make the monthly practice-portfolio picks (data/paper/), and commit them so the record is permanent.
+# Early every Saturday: gather the week's numbers into data/briefings/facts/<date>.json and publish a
+# factual draft. A scheduled Claude task then rewrites the draft in plain English (app/BRIEFING_PROMPT.md).
 on:
   schedule:
-    - cron: "15 22 * * 1-5"
+    - cron: "45 6 * * 6"
   workflow_dispatch:
 
 permissions:
   contents: write
   actions: write
-  issues: write
 
 concurrency:
   group: repo-writes
   cancel-in-progress: false
 
 jobs:
-  record:
+  facts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,25 +29,17 @@ jobs:
           path: data/cache
           key: bondcache-${{ github.run_id }}
           restore-keys: bondcache-
-      - run: python app/snapshot.py
+      - run: python app/briefing.py
       - name: Save to the repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/history data/paper
+          git add data/briefings
           if git diff --cached --quiet; then echo "Nothing new to save"; exit 0; fi
-          git commit -m "Daily record $(date -u +%F)"
+          git commit -m "Weekly briefing facts $(date -u +%F)"
           git pull --rebase
           git push
-      - name: Post today's alerts (if any) as an issue, which GitHub notifies the owner about
-        run: |
-          if [ -f alerts-today.md ]; then
-            gh issue create --title "Bond Compass alerts $(date -u +%F)" --body-file alerts-today.md
-            rm alerts-today.md
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Publish the site with the new record
+      - name: Publish the site with the new draft
         run: gh workflow run deploy.yml
         env:
           GH_TOKEN: ${{ github.token }}

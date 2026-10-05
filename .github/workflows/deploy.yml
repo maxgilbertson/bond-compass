@@ -30,6 +30,8 @@ jobs:
           path: data/cache
           key: bondcache-${{ github.run_id }}
           restore-keys: bondcache-
+      - name: Check the bond maths
+        run: python app/selftest.py
       - run: python app/build_static.py
       - uses: actions/upload-pages-artifact@v3
         with:

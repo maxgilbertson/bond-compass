@@ -6,6 +6,7 @@ stays online instead of being replaced by an empty page.
 """
 import hashlib
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -43,5 +44,7 @@ for page in server.PAGES:
             assert old in text, f"{old} missing from common.js"
             text = text.replace(old, new, 1)
     (OUT / page).write_text(text, encoding="utf-8")
+if (HERE.parent / "data" / "briefings").exists():
+    shutil.copytree(HERE.parent / "data" / "briefings", OUT / "briefings", dirs_exist_ok=True)
 (OUT / ".nojekyll").write_text("")
 print(f"Built site/ (version {VERSION})")

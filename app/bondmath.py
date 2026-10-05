@@ -5,6 +5,7 @@ the market's usual coupon frequency, settlement today), which is close enough to
 official figures for comparing bonds, but not for settling a trade.
 """
 import bisect
+import math
 from datetime import date
 
 
@@ -131,3 +132,61 @@ def outliers(pts, limit=0.5):
         if abs(y1 - line) > max(limit, abs(line) * 0.12):
             bad.add(i)
     return bad
+
+
+# ---------------------------------------------------------------- fitted curve (Nelson-Siegel) and forward rates
+
+def _ns_terms(t, lam):
+    x = max(t, 1e-6) / lam
+    e = math.exp(-x)
+    f1 = (1 - e) / x
+    return 1.0, f1, f1 - e
+
+
+def _solve3(a, b):
+    """Solve a 3x3 linear system by Gaussian elimination (a is a list of rows)."""
+    m = [row[:] + [v] for row, v in zip(a, b)]
+    for i in range(3):
+        p = max(range(i, 3), key=lambda r: abs(m[r][i]))
+        if abs(m[p][i]) < 1e-12:
+            return None
+        m[i], m[p] = m[p], m[i]
+        for r in range(3):
+            if r != i:
+                f = m[r][i] / m[i][i]
+                m[r] = [x - f * y for x, y in zip(m[r], m[i])]
+    return [m[i][3] / m[i][i] for i in range(3)]
+
+
+def fit_curve(pts):
+    """A smooth Nelson-Siegel curve through (years, yield) points: level, slope and hump, with the hump's
+    position chosen from a grid. Returns {"b": [b0, b1, b2], "lam": lam, "rmse": %} or None (fewer than 5 points)."""
+    pts = [(x, y) for x, y in pts if x is not None and y is not None and x > 0]
+    if len(pts) < 5:
+        return None
+    best = None
+    for lam in (0.4, 0.6, 0.8, 1.0, 1.3, 1.7, 2.2, 2.8, 3.5, 4.5, 6.0, 8.0):
+        X = [_ns_terms(t, lam) for t, _ in pts]
+        xtx = [[sum(r[i] * r[j] for r in X) + (1e-6 if i == j else 0) for j in range(3)] for i in range(3)]
+        xty = [sum(r[i] * y for r, (_, y) in zip(X, pts)) for i in range(3)]
+        b = _solve3(xtx, xty)
+        if not b:
+            continue
+        sse = sum((y - sum(bi * xi for bi, xi in zip(b, r))) ** 2 for r, (_, y) in zip(X, pts))
+        if best is None or sse < best[0]:
+            best = (sse, b, lam)
+    if not best:
+        return None
+    return {"b": best[1], "lam": best[2], "rmse": math.sqrt(best[0] / len(pts))}
+
+
+def curve_at(fit, t):
+    return sum(b * x for b, x in zip(fit["b"], _ns_terms(t, fit["lam"])))
+
+
+def forward(fit, a, b):
+    """Rate for borrowing from year a to year b implied by the fitted curve (yields treated as annual zero rates)."""
+    ya, yb = curve_at(fit, a) / 100, curve_at(fit, b) / 100
+    if a <= 0:
+        return yb * 100
+    return (((1 + yb) ** b / (1 + ya) ** a) ** (1 / (b - a)) - 1) * 100
