@@ -66,9 +66,29 @@ def _num(s):
         return None
 
 
+# The DMO's "CSV" export of report D10B is really a text dump of a paged report: each gilt is one page, with the
+# fields run together, e.g. "GB00BL6C77204 1/8% Treasury Gilt 202799.99100.785856100.00100.79585629-Jan-2027No".
+# Fields: ISIN, name (ends with the year), buy clean (2dp), buy dirty (6dp), sell clean, sell dirty,
+# index ratio (index-linked only), redemption date, rump gilt?, indexation lag (index-linked only).
+PAGE = re.compile(r"(GB[0-9A-Z]{9}\d)(.+? (?:19|20)\d\d)(\d{1,3}\.\d{2})(-?\d{1,3}\.\d{6})(\d{1,3}\.\d{2})(-?\d{1,3}\.\d{6})"
+                  r"(\d+\.\d+)?(\d{2}-[A-Z][a-z]{2}-\d{4})(Yes|No)")
+
+
+def parse_pages(text):
+    out = []
+    for m in PAGE.finditer(text):
+        isin, name, bc, bd, sc, sd, ratio, red, rump = m.groups()
+        out.append({"isin": isin, "name": " ".join(name.split()), "clean": round((float(bc) + float(sc)) / 2, 4),
+                    "dirty": round((float(bd) + float(sd)) / 2, 6), "mat": _date(red), "rump": rump == "Yes"})
+    return out
+
+
 def parse(body):
-    """Rows of {isin, name, clean, dirty, maturity} from a CSV or XML export, whatever the exact column names."""
+    """Rows of {isin, name, clean, dirty, maturity}: from the DMO's paged text dump, or a real CSV/XML table."""
     text = body.decode("utf-8-sig", "replace")
+    pages = parse_pages(text)
+    if pages:
+        return pages
     records = []
     if text.lstrip().startswith("<"):
         try:
