@@ -1,7 +1,7 @@
-name: Daily yield record
+name: Daily record
 
-# After the US close each weekday: save every market's closing yields to data/history/,
-# building our own history for maturities CNBC keeps none for, and commit it so the record is permanent.
+# After the US close each weekday: save every market's closing yields and scores to data/history/,
+# make the monthly practice-portfolio picks (data/paper/), and commit them so the record is permanent.
 on:
   schedule:
     - cron: "15 22 * * 1-5"
@@ -23,14 +23,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Reuse slow-moving data (yield history, IMF, ratings, central-bank rates)
+        uses: actions/cache/restore@v4
+        with:
+          path: data/cache
+          key: bondcache-${{ github.run_id }}
+          restore-keys: bondcache-
       - run: python app/snapshot.py
       - name: Save to the repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/history
+          git add data/history data/paper
           if git diff --cached --quiet; then echo "Nothing new to save"; exit 0; fi
-          git commit -m "Daily yields $(date -u +%F)"
+          git commit -m "Daily record $(date -u +%F)"
           git pull --rebase
           git push
       - name: Publish the site with the new record

@@ -1,4 +1,5 @@
-"""Our own daily record of every bond yield, kept in the repository (data/history/yields-<year>.json).
+"""The daily record: every bond yield (data/history/yields-<year>.json), every score (scores-<year>.jsonl)
+and the monthly practice-portfolio picks (data/paper/bonds.json), all kept in the repository.
 
 CNBC keeps no history for some maturities (the Reuters-style "live only" quotes, India's and Hong Kong's
 10-year, New Zealand's bills...). Saving each day's closing yields ourselves builds that history from now on,
@@ -48,5 +49,19 @@ def save():
     print(f"saved {len(ys)} yields for {day}")
 
 
-if __name__ == "__main__":
+def main():
+    """The daily job: save today's yields, then every score, and make the monthly practice-portfolio picks."""
+    import bonds
+    import tracking
     save()
+    data = bonds.build()
+    if len(data["rows"]) < 25:
+        raise SystemExit(f"only {len(data['rows'])} markets loaded; not saving scores")
+    tracking.write_snapshot(data)
+    if tracking.maybe_rebalance(data["rows"]):
+        print("new monthly picks:", ", ".join(tracking.load_paper()["rebalances"][-1]["top"]))
+    print(f"saved scores for {tracking.today_key()}: {len(data['rows'])} markets")
+
+
+if __name__ == "__main__":
+    main()

@@ -10,9 +10,12 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 
 import bondmath
+import backtest
 import markets
+import perf
 import snapshot
 import sources
+import tracking
 
 DAY = 86400
 TENOR_WORD = lambda t: f"{t[:-1]}-month" if t.endswith("M") else f"{t[:-1]}-year"
@@ -215,13 +218,14 @@ def fetch_everything():
     hist_syms = [s for p in pts.values() for _, s, h in p if h]
     ccys = sorted({m[3] for m in mk} - {"USD"})
     names = {markets.RATING_NAME.get(m[0], m[1]) for m in mk}
-    with ThreadPoolExecutor(max_workers=7) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         jobs = {
             "quotes": ex.submit(_try, sources.quotes, all_syms),
             "history": ex.submit(_try, sources.history, hist_syms),
             "fred": ex.submit(_try, sources.fred, [f[0] for f in markets.FRED]),
             "imf": ex.submit(_try, sources.imf, list(markets.IMF), [m[4] for m in mk]),
             "bis": ex.submit(_try, sources.policy_rates, sorted({m[5] for m in mk if m[5]})),
+            "bisM": ex.submit(_try, sources.policy_rates_monthly, sorted({m[5] for m in mk if m[5]})),
             "yahoo": ex.submit(_try, sources.yahoo_all, markets.YAHOO + [f"{c}=X" for c in ccys if c != "GBP"]),
             "ratings": ex.submit(_try, sources.ratings, names),
         }
@@ -230,16 +234,23 @@ def fetch_everything():
     return {k: v for k, (v, _) in got.items()}, errors, pts
 
 
+def load_history(cnbc):
+    """CNBC's daily closes, glitches removed, with our own daily record filling maturities CNBC has none for."""
+    H = {s: perf.clean(v) for s, v in (cnbc or {}).items() if v}
+    for sym, own in snapshot.load().items():
+        if not H.get(sym) and len(own) >= 2:
+            H[sym] = own
+    return H
+
+
 def build():
     raw, errors, pts = fetch_everything()
     Q = raw["quotes"] or {}
-    H = dict(raw["history"] or {})
-    for sym, own in snapshot.load().items():  # our own daily closes fill in maturities CNBC keeps no history for
-        if not H.get(sym) and len(own) >= 2:
-            H[sym] = own
+    H = load_history(raw["history"])
     fred, fred_at = raw["fred"] or ({}, None)
     imf, imf_at = raw["imf"] or ({}, None)
     bis, bis_at = raw["bis"] or ({}, None)
+    bis_m, _ = raw["bisM"] or ({}, None)
     fx = raw["yahoo"] or {}
     rts = (raw["ratings"] or {}).get("ratings", {})
     rts_checked = (raw["ratings"] or {}).get("checked")
@@ -466,6 +477,41 @@ def build():
         r["m"] = {"score": score, "value": blend(VALUE_PARTS), "safety": blend(SAFETY_PARTS), "parts": parts,
                   "inputs": r.pop("_inputs"), "signal": signal(score)}
 
+    # ---------- the record: score changes, signal log, practice portfolios, and the test on past data
+    names = {r["code"]: r["name"] for r in rows}
+    changes = tracking.score_changes(rows)
+    for r in rows:
+        r["m"].update({k: v for k, v in (changes.get(r["code"]) or {}).items()})
+    sig_log = tracking.signal_log(rows)
+    paper = None
+    log = tracking.load_paper()
+    if log and log["rebalances"]:
+        start = tracking.day_end(log["rebalances"][0]["date"]) - DAY  # the day before the first pick, so it has a base
+        gb_cash_fn = perf.rate_fn(bis.get("GB"), bis_m.get("GB"), fallback=gb_cash)
+        idx = {}
+        for r in rows:
+            b = next(x for x in r["bonds"] if x["tenor"] == r["bench"])
+            h = (b["_h"] or []) + ([[now, b["y"]]] if not b["_h"] or b["_h"][-1][0] < now - 3600 else [])
+            loc = perf.rate_fn(bis.get(r["_bis"]), bis_m.get(r["_bis"]), fallback=cash.get(r["code"])) if r["_bis"] else perf.rate_fn(fallback=cash.get(r["code"]))
+            idx[r["code"]] = perf.index(h, start, None, markets.tenor_years(r["bench"]), loc, gb_cash_fn)
+        gilt = idx.get("GB")  # in pounds already: hedging pounds into pounds adds nothing
+        days = [start + DAY * k for k in range(int((now - start) // DAY) + 2)]
+        cash_idx, v = [], 1.0
+        for t0, t1 in zip(days, days[1:] + [now]):
+            cash_idx.append([t0, v])
+            v *= 1 + (gb_cash_fn(t0) or 0) / 100 * max(0, min(t1, now) - t0) / (365 * DAY)
+        paper = tracking.paper_report(idx, gilt, cash_idx, names)
+
+    def run_test(_old):
+        full = backtest.run(H, imf, bis, bis_m, now)
+        if full:  # the same test on developed markets only: is it all down to emerging markets?
+            full["dm"] = backtest.run(H, imf, bis, bis_m, now, only=markets.DEVELOPED)
+        return full
+    try:
+        bt, _ = sources.cached("backtest", 12 * 3600, run_test)
+    except Exception as e:  # noqa: BLE001 - the page still works without the test
+        bt, errors = None, errors + [f"backtest: {e}"]
+
     for r in rows:
         for b in r["bonds"]:
             b.pop("_h", None), b.pop("_mat", None)
@@ -485,6 +531,7 @@ def build():
     out = {
         "generated": now, "marketTime": max(times) if times else now, "rows": rows,
         "credit": credit, "move": move_b, "weights": WEIGHTS,
+        "paper": paper, "changes": sig_log, "backtest": bt, "btWeights": backtest.PARTS,
         "rules": backdrop(rows, credit, move_b),
         "sources": {"imfAt": imf_at, "fredAt": fred_at, "bisAt": bis_at, "ratingsChecked": rts_checked,
                     "imfYear": year},
@@ -582,9 +629,6 @@ def backdrop(rows, credit, move):
 def country_history(code):
     """One market's long yield history: daily for the last two years, weekly before (since 2016)."""
     m = next(x for x in markets.MARKETS if x[0] == code)
-    H = dict(sources.history([s for x in markets.MARKETS for _, s, h in markets.points(x) if h]))  # same list as build(), so it hits the cache
-    for sym, own in snapshot.load().items():
-        if not H.get(sym) and len(own) >= 2:
-            H[sym] = own
+    H = load_history(sources.history([s for x in markets.MARKETS for _, s, h in markets.points(x) if h]))  # same list as build(), so it hits the cache
     since = time.time() - 2 * 365 * DAY
     return {"code": code, "series": {t: thin(H[s], since) for t, s, _ in markets.points(m) if H.get(s)}}

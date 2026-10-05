@@ -225,6 +225,23 @@ def policy_rates(codes):
     return cached("bis", 12 * 3600, fetch)
 
 
+def policy_rates_monthly(codes):
+    """Month-end policy rates since 2015 (for the test on past data), refreshed weekly."""
+    def fetch(old):
+        url = f"https://stats.bis.org/api/v1/data/WS_CBPOL/M.{'+'.join(codes)}/all?startPeriod=2015-01&format=csv"
+        res = {}
+        for r in csv.DictReader(io.StringIO(get(url, timeout=60).decode("utf-8"))):
+            v = r.get("OBS_VALUE")
+            if v and v.lower() != "nan":
+                y, m = map(int, r["TIME_PERIOD"].split("-"))
+                end = datetime(y + (m == 12), m % 12 + 1, 1, tzinfo=timezone.utc).timestamp() - 1
+                res.setdefault(r["REF_AREA"], []).append([int(end), float(v)])
+        for s in res.values():
+            s.sort()
+        return res or None
+    return cached("bis_monthly", 7 * 86400, fetch)
+
+
 # ---------------------------------------------------------------- Yahoo: currencies and the MOVE index
 
 def yahoo(symbol, rng="2y"):

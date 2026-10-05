@@ -23,6 +23,7 @@
   <div class="wrap">
     <div class="brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 22c4-8 9-11 19-12" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="11" cy="16.2" r="1.8" fill="currentColor"/><circle cx="18" cy="11.6" r="1.8" fill="currentColor"/></svg>
       <h1>Bond <span>Compass</span></h1><span class="eyebrow">World government bonds</span></div>
+    <nav class="pages" aria-label="Sister sites"><a href="https://maxgilbertson.github.io/sector-compass/index.html" title="Sector Compass: sector funds">Sectors</a><a href="https://maxgilbertson.github.io/sector-compass/world.html" title="Sector Compass: country stock markets">Countries</a><a href="./" aria-current="page">Bonds</a></nav>
     <div class="status"><span class="dot" id="dot"></span><span id="stamp">Loading live yields…</span></div>
     <button class="btn primary" id="refresh" type="button">Refresh now</button>
   </div>
@@ -34,6 +35,7 @@
   <button type="button" data-view="countries">Countries</button>
   <button type="button" data-view="credit">Credit &amp; inflation</button>
   <button type="button" data-view="banks">Central banks</button>
+  <button type="button" data-view="record">Track record</button>
   <button type="button" data-view="guide">Guide</button>
 </div></nav>
 
@@ -109,6 +111,7 @@ const PARTS = {
 const C = {
   score:{l:"Score",s:"0–100",g:r=>r.m.score,f:(v,r)=>`<div class="scorecell"><span class="bar"><i style="width:${v||0}%;background:${scoreColor(v)}"></i></span><b class="num">${v==null?"–":Math.round(v)}</b></div>`,t:"Bond Compass score: value (real yield, cushion, cheapness) 60%, safety (rating, debt, budget gap, interest bill) 40%. See the Guide."},
   signal:{l:"Signal",g:r=>r.m.score,f:(v,r)=>sigPill(r.m.signal),t:"What the score suggests, from Avoid to Strong overweight."},
+  d1wS:{l:"Score 1w",g:r=>r.m.d1w,f:v=>`<span class="num ${cls(v)}">${isNum(v)?sgnN(v):"–"}</span>`,t:"Change in the score over the past week, from the daily record (blank until a week of records exists)."},
   value:{l:"Value",s:"0–100",g:r=>r.m.value,f:v=>`<span class="num" style="color:${scoreColor(v)}">${v==null?"–":Math.round(v)}</span>`,t:"The value half of the score: real yield, cushion against rising yields, cheapness vs its own past."},
   safety:{l:"Safety",s:"0–100",g:r=>r.m.safety,f:v=>`<span class="num" style="color:${scoreColor(v)}">${v==null?"–":Math.round(v)}</span>`,t:"The safety half: credit rating, debt, budget gap and interest bill."},
   y:{l:"Yield",s:"to maturity",g:(r,b)=>b&&b.y,f:(v,r,b)=>`<b class="num">${yld(v,2)}</b>${b&&b.approx?`<small class="muted" title="This market has no ${tenorWord(S.tenor)} bond; showing its ${tenorWord(b.tenor)}"> ${b.tenor}</small>`:""}`,t:"Yield to maturity: the yearly return if you buy today and hold to maturity, with coupons reinvested at the same rate."},
@@ -165,7 +168,7 @@ const C = {
   spark:{l:"Past year",g:r=>null,f:(v,r)=>sparkSVG(r.spark),t:"The benchmark yield over the past year. Green = yields fell (prices rose); red = yields rose."},
 };
 const COLSETS = {
-  key:{label:"Key",cols:["score","signal","y","chg","d1m","realY","hedgedGbp","s2s10","rating","debt","spark"]},
+  key:{label:"Key",cols:["score","d1wS","signal","y","chg","d1m","realY","hedgedGbp","s2s10","rating","debt","spark"]},
   changes:{label:"Yield moves",cols:["y","chg","d1w","d1m","d3m","ytd","d1y","d3y","range","z1y","pct3y"]},
   risk:{label:"Bond & risk",cols:["y","coupon","mat","price","mod","conv","dv01","vol","z1y"]},
   carry:{label:"Carry",cols:["y","cash","roll","ret12","excess","breakeven","hedgedGbp","hedgedUsd","expects"]},
@@ -189,6 +192,7 @@ function render(){
     <div class="view" data-view="countries">${countriesHTML()}</div>
     <div class="view" data-view="credit">${creditHTML(d)}</div>
     <div class="view" data-view="banks">${banksHTML()}</div>
+    <div class="view" data-view="record">${recordHTML(d)}</div>
     <div class="view" data-view="guide">${guideHTML(d)}</div>
     <p class="disclaimer">For research and education only; not investment advice. Yields from CNBC (Tradeweb and other dealer quotes, delayed); history rebuilt from CNBC daily closes;
       public finances from the IMF World Economic Outlook and Fiscal Monitor; central-bank rates from the Bank for International Settlements; credit spreads, TIPS and breakevens
@@ -581,7 +585,7 @@ function guideHTML(d){
       <table class="comp" style="width:100%;border-collapse:collapse;font-size:13.5px"><thead><tr><th class="l" style="position:static">Ingredient</th><th style="position:static">Weight</th><th class="l" style="position:static">What it measures</th></tr></thead><tbody>
       ${Object.entries(PARTS).map(([k,p])=>`<tr><td class="l" style="white-space:normal"><b>${esc(p.name)}</b> <small class="muted">${p.group}</small></td><td class="num">${Math.round((w[k]||0)*100)}%</td><td class="l" style="white-space:normal">${esc(p.tip)}</td></tr>`).join("")}</tbody></table>
       <p><b>Signals:</b> 80+ Strong overweight · 60–79 Overweight · 40–59 Neutral · 20–39 Underweight · under 20 Avoid. A missing ingredient (for example, no 3-year history) is left out and the others re-weighted.</p>
-      <p><b>Not tested on the past.</b> Unlike Sector Compass's score, this one hasn't been back-tested: the IMF forecasts and ratings it uses aren't kept as they stood on past dates. Treat it as a structured summary of today's numbers, not a forecast.</p>`)}
+      <p><b>Tested on the past, in part.</b> The <a href="#track">Track record</a> rebuilds the 75% of the score that can be rebuilt from data known at the time (everything except ratings and the budget gap) every month since 2017, and follows the top and bottom 20% hedged into pounds. It also runs practice portfolios from October 2026 that can't be tuned after the event.</p>`)}
     ${fold("g-uk","For a UK investor <small>pounds, gilts and currency</small>",`<ul>
       <li><b>Currency is often the biggest risk</b> in a foreign bond. A 10% move in the currency can swamp several years of yield difference. That's why the tables show yields <i>hedged into pounds</i>: it's the fair way to compare a gilt with a Bund or a Treasury.</li>
       <li><b>Hedging isn't free or costly by default</b>: it earns or pays the gap between UK and foreign short-term rates. Hedging a low-rate currency (yen, Swiss franc) into pounds adds yield; hedging a high-rate one (Brazil, Turkey) takes most of it away.</li>
@@ -603,6 +607,71 @@ function guideHTML(d){
       <li>Returns are rebuilt from yields, not taken from an index or fund.</li>
       <li>Nothing here is advice. Bonds can and do lose money, especially long-dated ones when yields rise.</li></ul>`)}
   </div></section>`;
+}
+
+/* ---------- track record: the test on past data, practice portfolios, signal changes */
+const BT_PART = {realY:"Real yield",carry:"Cushion against rising yields",cheap:"Cheap compared with its own past",debt:"Government debt (lower ranks higher)",intRev:"Interest bill (lower ranks higher)"};
+function btStrength(bt){ if(!bt) return {label:"Not enough data",cls:"none"};
+  const halves=(bt.halves||[]).every(h=>h.topEx>0&&h.botEx<0), t=bt.tSpread??0;
+  return t>=2&&halves? {label:"Promising",cls:"good"} : t>=1? {label:"Weak",cls:"weak"} : {label:"No edge",cls:"none"}; }
+const confWord = t => t==null? "–" : Math.abs(t)>=2? "high" : Math.abs(t)>=1? "low" : "none";
+const yr = ts => new Date(ts*1000).toLocaleDateString(undefined,{month:"short",year:"numeric",timeZone:"UTC"});
+function btKpis(bt){ return `<div class="kpis">
+  <div class="kpi"><span>Top-scored 20%</span><b class="${cls(bt.topEx)}">${pct(bt.topEx,1)}</b><small>a year vs all markets equally weighted (${pct(bt.topAnn,1)} a year vs ${pct(bt.allAnn,1)})</small></div>
+  <div class="kpi"><span>Lowest-scored 20%</span><b class="${cls(bt.botEx)}">${pct(bt.botEx,1)}</b><small>a year vs all markets (${pct(bt.botAnn,1)} a year)</small></div>
+  <div class="kpi"><span>Months the top 20% won</span><b>${Math.round(bt.hitTop*100)}%</b><small>of ${bt.months} months; the bottom 20% lost in ${Math.round(bt.hitBot*100)}%</small></div>
+  <div class="kpi"><span>Confidence (top minus bottom)</span><b>${esc(cap(confWord(bt.tSpread)))}</b><small>t = ${isNum(bt.tSpread)?bt.tSpread.toFixed(1):"–"}; 2 or more = unlikely to be luck</small></div></div>`; }
+function recordHTML(d){
+  const bt=d.backtest, dm=bt&&bt.dm, st=btStrength(bt), p=d.paper, ch=d.changes;
+  const W=d.btWeights||{}, totW=Object.values(W).reduce((a,b)=>a+b,0);
+  const btSec = !bt? `<p class="muted">The test on past data couldn't run (not enough history loaded). It will appear on the next refresh.</p>` : `
+    <div class="card verdict-bt"><span class="badge ${st.cls}">${esc(st.label)}</span><div>
+      Every month from ${yr(bt.from)} to ${yr(bt.to)} (${bt.months} months, about ${Math.round(bt.avgMarkets)} markets a month), the markets were re-scored using only numbers known at the time,
+      and the top- and lowest-scored 20% were followed for the next month, with the currency hedged back to pounds and an assumed ${(bt.cost*100).toFixed(2)}% cost for each trade.
+      The <b>top 20% ${bt.topEx>=0?"beat":"trailed"} the average market by ${pct(Math.abs(bt.topEx),1,false)} a year</b> and the lowest 20% ${bt.botEx<=0?"trailed":"beat"} it by ${pct(Math.abs(bt.botEx),1,false)} a year.
+      ${(bt.halves||[]).length===2?`It held in both halves of the period (top 20% ${pct(bt.halves[0].topEx,1)} then ${pct(bt.halves[1].topEx,1)} a year vs the average)`:""}${dm?`, and among developed markets alone (top 20% ${pct(dm.topEx,1)}, bottom 20% ${pct(dm.botEx,1)} a year vs their average)`:""}.
+      <span class="muted">A test on the past is not a promise: see the limits below.</span></div></div>
+    ${btKpis(bt)}
+    <div class="card chartbox"><div class="row"><span class="eyebrow">Growth of £1, hedged into pounds</span>
+      <span class="key"><i style="background:var(--s1)"></i>Top-scored 20%</span><span class="key"><i style="background:var(--faint)"></i>All markets, equal amounts</span><span class="key"><i style="background:var(--s2)"></i>Lowest-scored 20%</span><span class="key"><i class="dash" style="color:var(--s3)"></i>UK 10-year gilts</span></div>
+      <div id="btChart"></div><p class="note">Rebalanced at each month end. Returns are rebuilt from daily yields (income plus the price effect of yield changes) and the cost of hedging the currency, so they're close to, but not the same as, a fund's.</p></div>
+    <div class="two">
+      <div class="card panel">${secHead({eyebrow:"Ingredients",title:"Which parts did the work",h:"h3",lead:"For each ingredient, how well ranking markets by it lined up with the next month's return (rank correlation, averaged over all months)."})}
+        <table class="comp"><thead><tr><th>Ingredient</th><th>Weight in test</th><th>Link with next month</th><th>Confidence</th></tr></thead><tbody>
+        ${Object.entries(bt.components).map(([k,c])=>`<tr><td>${esc(BT_PART[k]||k)}</td><td class="num">${Math.round((W[k]||0)/totW*100)}%</td><td class="num ${cls(c.ic)}">${isNum(c.ic)?(c.ic>0?"+":"")+c.ic.toFixed(2):"–"}</td><td>${esc(cap(confWord(c.t)))}${isNum(c.t)&&c.t<=-1?" <span class=\"warn\">(worked backwards)</span>":""} <small class="muted">(t = ${isNum(c.t)?c.t.toFixed(1):"–"})</small></td></tr>`).join("")}</tbody></table>
+        <p class="note">Positive = markets ranking higher on it tended to do better next month. Ratings and the budget gap (25% of the live score) can't be rebuilt for past dates, so the test leaves them out and re-weights the rest.</p></div>
+      <div class="card panel">${secHead({eyebrow:"Recent months",title:"What the test picked",h:"h3",lead:"The last few month-end picks and how they did over the following month."})}
+        <table class="comp"><thead><tr><th>Month end</th><th>Top 20%</th><th>Next month</th><th>Bottom 20%</th><th>Next month</th></tr></thead><tbody>
+        ${bt.recent.slice().reverse().map(m=>`<tr><td class="num">${dateStr(m.t)}</td><td>${m.top.map(c=>`<span data-open="${c}" style="cursor:pointer">${c}</span>`).join(" ")}</td><td class="num ${cls(m.topRet-m.allRet)}">${pct(m.topRet,1)}</td><td>${m.bottom.map(c=>`<span data-open="${c}" style="cursor:pointer">${c}</span>`).join(" ")}</td><td class="num ${cls(m.botRet-m.allRet)}">${pct(m.botRet,1)}</td></tr>`).join("")}</tbody></table>
+        <p class="note">Average of all markets each month for comparison: ${bt.recent.slice().reverse().map(m=>pct(m.allRet,1)).join(", ")}.</p></div>
+    </div>
+    ${more("btlimits",`<ul>
+      <li><b>Only 75% of the score is tested.</b> Credit ratings and the budget gap aren't kept as they stood on past dates.</li>
+      <li><b>Inflation</b> uses the previous year's actual figure (known at the time) instead of the forecasts the live score uses; IMF figures may have been revised since.</li>
+      <li><b>Hedging costs</b> use central-bank rates, not actual forward prices. In emerging markets the real cost can differ (the "cross-currency basis"), which is why the developed-markets-only result matters.</li>
+      <li><b>The markets</b> are today's 33, followed back in time; all had liquid bond markets throughout, so this matters less than for shares.</li>
+      <li><b>What it found:</b> real yield and the cushion against rising yields carried the result; cheapness against its own past, debt and the interest bill added nothing on their own. The live score still includes them (with ratings and the budget gap) as a guard against buying high yields from governments in trouble.</li></ul>`,"Limits of this test")}`;
+  const lines=p&&p.lines, last=k=>lines&&lines[k]&&lines[k].length?lines[k][lines[k].length-1]:null;
+  const ppl = p? `<div class="kpis">${[["top","Top-scored 20%"],["bottom","Lowest-scored 20%"],["all","All markets"],["gilts","UK 10-year gilts"]].map(([k,l])=>{ const v=last(k); return `<div class="kpi"><span>${l}</span><b>${v==null?"–":"£"+Math.round(v).toLocaleString()}</b><small class="${cls(v==null?null:v-10000)}">${v==null?"":pct(v/10000-1,2)} since ${isoDate(p.started)}</small></div>`; }).join("")}</div>
+    <div class="card chartbox"><div class="row"><span class="eyebrow">Value of £10,000, hedged into pounds</span><span class="key"><i style="background:var(--s1)"></i>Top 20%</span><span class="key"><i style="background:var(--faint)"></i>All markets</span><span class="key"><i style="background:var(--s2)"></i>Bottom 20%</span><span class="key"><i class="dash" style="color:var(--s3)"></i>UK gilts</span><span class="key"><i class="dash" style="color:var(--s4)"></i>Cash at Bank Rate</span></div>
+      <div id="paperChart">${p.t.length<3?`<p class="muted" style="margin:6px 0">The chart fills in as the days go by: the first picks were made on ${isoDate(p.started)}.</p>`:""}</div></div>
+    <div class="two">
+      <div class="card panel"><div class="eyebrow" style="margin-bottom:8px">Held now: top-scored 20% (picked ${isoDate(p.rebalances[p.rebalances.length-1].date)})</div>${p.holdings.map(h=>`<div class="chcard" data-open="${h.key}" style="margin-bottom:6px"><span>${esc(h.name)}</span><span class="num ${cls(h.since)}">${pct(h.since,2)}</span></div>`).join("")}</div>
+      <div class="card panel"><div class="eyebrow" style="margin-bottom:8px">For comparison: lowest-scored 20%</div>${p.bottomHoldings.map(h=>`<div class="chcard" data-open="${h.key}" style="margin-bottom:6px"><span>${esc(h.name)}</span><span class="num ${cls(h.since)}">${pct(h.since,2)}</span></div>`).join("")}</div></div>
+    <p class="note">${esc(p.rule)} Next picks: ${isoDate(p.nextRebalance)}. Assumed cost ${(p.costPerTrade*100).toFixed(2)}% per trade. Weeks of results mean very little; give it a year or more.</p>`
+    : `<p class="muted">The practice portfolios start with the first daily record.</p>`;
+  const sigs = ch&&ch.changes.length? `<div class="chglist">${ch.changes.slice().reverse().slice(0,40).map(c=>{ const r=byCode(c.key); return `<div class="chcard" data-open="${c.key}"><span><b>${esc(r?r.name:c.key)}</b><br><small>${esc(isoDate(c.date))}${c.live?" (today, live)":""}</small></span><span>${sigPill(c.from)} → ${sigPill(c.to)}</span></div>`; }).join("")}</div>`
+    : `<p class="muted">No signal has changed since the daily record began${ch&&ch.since?` on ${esc(isoDate(ch.since))}`:""}. Changes will be listed here as they happen.</p>`;
+  return `<section id="track">${secHead({eyebrow:"Tested on the past",title:"Would the score have worked?",lead:"The fair test of any score: rebuild it month by month using only what was known at the time, and see what happened next."})}<div class="bt-grid" style="display:grid;gap:14px">${btSec}</div></section>
+  <section id="paper">${secHead({eyebrow:"Live test",title:"Practice portfolios",lead:"A record that can't be tuned after the event: each month's picks are saved before anyone knows how they'll do. Pretend £10,000 portfolios, currency hedged back to pounds."})}<div style="display:grid;gap:14px">${ppl}</div></section>
+  <section id="signals">${secHead({eyebrow:"Signal changes",title:"When signals changed",lead:"Every change of signal since the daily record began, newest first."})}${sigs}</section>`;
+}
+function drawRecord(){
+  const d=S.data, bt=d.backtest, p=d.paper;
+  if(bt&&$("#btChart")){ const c=bt.curves;
+    lineChart($("#btChart"),{t:c.t,series:[{v:c.top,color:"var(--s1)",name:"Top 20%",w:2.2},{v:c.all,color:"var(--faint)",name:"All markets",w:1.6},{v:c.bottom,color:"var(--s2)",name:"Bottom 20%",w:1.8},{v:c.gilts,color:"var(--s3)",name:"UK gilts",dash:"5 4",w:1.6}],h:280,fmt:v=>"£"+v.toFixed(2),baseline:1}); }
+  if(p&&$("#paperChart")&&p.t.length>=3){ const L=p.lines;
+    lineChart($("#paperChart"),{t:p.t,series:[{v:L.top,color:"var(--s1)",name:"Top 20%",w:2.2},{v:L.all,color:"var(--faint)",name:"All markets",w:1.6},{v:L.bottom,color:"var(--s2)",name:"Bottom 20%",w:1.8},{v:L.gilts,color:"var(--s3)",name:"UK gilts",dash:"5 4"},{v:L.cash,color:"var(--s4)",name:"Cash",dash:"2 3"}],h:240,fmt:v=>"£"+Math.round(v).toLocaleString(),baseline:10000}); }
 }
 
 /* ---------------------------------------------------------------- detail panel */
@@ -790,8 +859,8 @@ function redrawBanks(){ const v=document.querySelector('[data-view="banks"]'); v
 function drawOverview(){ const el=$("#ovScatter"); if(!el) return;
   scatterChart(el,{pts:rows().map(r=>({x:r.m.safety,y:r.m.value,label:r.code,key:r.code,color:r.dm?"var(--s1)":"var(--s2)",tip:`<b>${esc(r.name)}</b><br>Value ${Math.round(r.m.value)} · safety ${Math.round(r.m.safety)} · score ${Math.round(r.m.score)}`})),
     xlab:"Safety (0–100) →",ylab:"Value (0–100) →",xfmt:v=>v.toFixed(0),yfmt:v=>v.toFixed(0),fit:false,quad:vsQuad,h:330}); }
-Views.init(["overview","monitor","curves","countries","credit","banks","guide"],
-  {overview:drawOverview,curves:drawCurves,countries:()=>{drawMap();drawScatter();},credit:drawCredit,banks:drawBanks});
+Views.init(["overview","monitor","curves","countries","credit","banks","record","guide"],
+  {overview:drawOverview,curves:drawCurves,countries:()=>{drawMap();drawScatter();},credit:drawCredit,banks:drawBanks,record:drawRecord});
 let resizeT; addEventListener("resize",()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if(S.data) Views.apply(); },200); });
 startLoop({url:"bonds",onData:data=>{ S.data=data; render(); if(S.sel&&$("#drawer")) openDetail(S.sel); }});
 </script>
