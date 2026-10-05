@@ -3,6 +3,7 @@
 build() returns everything the page shows; country_history() returns one market's long yield history
 for its detail panel. All yields are in % a year; spreads and changes are in basis points (bp, 0.01%).
 """
+import json
 import math
 import statistics as st
 import time
@@ -12,7 +13,9 @@ from datetime import date, datetime, timezone
 import bondmath
 import backtest
 import calendar_events
+import extra_sources
 import markets
+import monthly_sources
 import perf
 import snapshot
 import sources
@@ -215,24 +218,38 @@ def _try(fn, *a):
 def fetch_everything():
     mk = markets.MARKETS
     pts = {m[0]: markets.points(m) for m in mk}
-    all_syms = [s for p in pts.values() for _, s, _ in p]
-    hist_syms = [s for p in pts.values() for _, s, h in p if h]
+    all_syms = [s for p in pts.values() for _, s, _ in p if "@" not in s]
+    hist_syms = [s for p in pts.values() for _, s, h in p if h and "@" not in s]
     ccys = sorted({m[3] for m in mk} - {"USD"})
-    names = {markets.RATING_NAME.get(m[0], m[1]) for m in mk}
+    names = {markets.RATING_NAME.get(m[0], m[1]) for m in mk} | {m[5] for m in monthly_sources.MONTHLY}
+    imf_codes = [m[4] for m in mk] + [m[4] for m in monthly_sources.MONTHLY]
     with ThreadPoolExecutor(max_workers=8) as ex:
         jobs = {
             "quotes": ex.submit(_try, sources.quotes, all_syms),
             "history": ex.submit(_try, sources.history, hist_syms),
             "fred": ex.submit(_try, sources.fred, [f[0] for f in markets.FRED]),
-            "imf": ex.submit(_try, sources.imf, list(markets.IMF), [m[4] for m in mk]),
+            "imf": ex.submit(_try, sources.imf, list(markets.IMF), imf_codes),
+            "monthly": ex.submit(_try, monthly_sources.fetch_all),
             "bis": ex.submit(_try, sources.policy_rates, sorted({m[5] for m in mk if m[5]})),
             "bisM": ex.submit(_try, sources.policy_rates_monthly, sorted({m[5] for m in mk if m[5]})),
             "yahoo": ex.submit(_try, sources.yahoo_all, markets.YAHOO + [f"{c}=X" for c in ccys if c != "GBP"]),
             "ratings": ex.submit(_try, sources.ratings, names),
+            "funds": ex.submit(_try, sources.fund_prices, FUNDS),
+            "extra": ex.submit(_try, extra_sources.fetch_all),
         }
         got = {k: j.result() for k, j in jobs.items()}
     errors = [e for _, e in got.values() if e]
     return {k: v for k, (v, _) in got.items()}, errors, pts
+
+
+def _load_funds():
+    try:
+        return json.loads((sources.ROOT / "data" / "etfs.json").read_text(encoding="utf-8"))["funds"]
+    except (OSError, ValueError, KeyError):
+        return []
+
+
+FUNDS = _load_funds()
 
 
 def load_history(cnbc):
@@ -246,8 +263,15 @@ def load_history(cnbc):
 
 def build():
     raw, errors, pts = fetch_everything()
-    Q = raw["quotes"] or {}
-    H = load_history(raw["history"])
+    Q = dict(raw["quotes"] or {})
+    extra_h, extra_detail = raw["extra"] or ({}, {})
+    H = load_history({**(raw["history"] or {}), **extra_h})
+    for s_, h in extra_h.items():  # official sources: today's quote is the latest close
+        if h:
+            d = extra_detail.get(s_, {})
+            Q[s_] = {"y": h[-1][1], "chg": (h[-1][1] - h[-2][1]) if len(h) > 1 and h[-1][0] - h[-2][0] < 5 * DAY else None,
+                     "coupon": d.get("coupon"), "mat": d.get("mat"), "price": None, "hi1y": None, "lo1y": None,
+                     "time": h[-1][0], "name": d.get("name"), "open": False}
     fred, fred_at = raw["fred"] or ({}, None)
     imf, imf_at = raw["imf"] or ({}, None)
     bis, bis_at = raw["bis"] or ({}, None)
@@ -286,8 +310,12 @@ def build():
                 approx_mat = True
             else:
                 coupon, approx_mat = (q or {}).get("coupon"), False
+            if coupon is None and nominal > 1:  # unknown coupon: assume a bond priced near par (coupon = yield)
+                coupon, approx_coupon = round(y, 3), True
+            else:
+                approx_coupon = False
             bonds.append({"tenor": tenor, "sym": sym, "hist": bool(h), "y": y, "chg": None if chg is None else round(chg * 100, 1),
-                          "coupon": coupon, "mat": mat.isoformat(), "approxMat": approx_mat,
+                          "coupon": coupon, "mat": mat.isoformat(), "approxMat": approx_mat, "approxCoupon": approx_coupon,
                           "quoted": (q or {}).get("price"), "time": when, "stale": bool(when and now - when > 5 * DAY),
                           "_h": h, "_mat": mat})
         if not bonds:
@@ -479,6 +507,8 @@ def build():
         }
 
     rows = [r for r in rows if r.get("bench")]
+    for r in rows:
+        r["funds"] = markets.fund_groups(r["code"], r["dm"])
     # ---------- the score
     ranks = {}
     for k in WEIGHTS:
@@ -551,11 +581,51 @@ def build():
         "paper": paper, "changes": sig_log, "backtest": bt, "btWeights": backtest.PARTS,
         "health": health(rows, Q, pts, errors, {"imf": imf_at, "fred": fred_at, "bis": bis_at}, rts_checked, now),
         "calendar": calendar_events.upcoming(days=45),
+        "funds": funds_block(raw.get("funds")),
+        "monthly": monthly_block(raw.get("monthly") or {}, imf, rts, now),
         "rules": backdrop(rows, credit, move_b),
         "sources": {"imfAt": imf_at, "fredAt": fred_at, "bisAt": bis_at, "ratingsChecked": rts_checked,
                     "imfYear": year},
         "errors": errors + [f"no quote: {s}" for r in markets.MARKETS for _, s, _ in pts[r[0]] if s not in Q and s not in H][:40],
     }
+    return out
+
+
+def monthly_block(data, imf, rts, now):
+    """Markets with monthly yields only: latest values, changes, and the same public-finance context."""
+    year = date.today().year
+    out = []
+    for code, name, region, ccy, imf_code, rname, src in monthly_sources.MONTHLY:
+        series = data.get(code) or {}
+        ten = series.get("10Y")
+        if not ten:
+            continue
+        last_t, y = ten[-1]
+        get = lambda ind, yr=year: ((imf.get(ind) or {}).get(imf_code) or {}).get(yr)
+        infl = [get("PCPIPCH", yr) for yr in range(year + 1, year + 6)]
+        infl = [v for v in infl if v is not None]
+        prim, bal, rev = get("GGXONLB_G01_GDP_PT"), get("GGXCNL_G01_GDP_PT"), get("GGR_G01_GDP_PT")
+        out.append({
+            "code": code, "name": name, "region": region, "ccy": ccy, "source": src, "asOf": last_t, "y": y,
+            "d3m": bp(y, at_or_before(ten, last_t - 85 * DAY)), "d1y": bp(y, at_or_before(ten, last_t - 360 * DAY)),
+            "hi3y": max(v for t, v in ten if t >= last_t - 3 * 365 * DAY), "lo3y": min(v for t, v in ten if t >= last_t - 3 * 365 * DAY),
+            "other": {t: s[-1][1] for t, s in series.items() if t != "10Y" and s},
+            "realY": round(y - mean(infl), 3) if infl else None, "inflFwd": round(mean(infl), 2) if infl else None,
+            "debt": get("GGXWDG_NGDP"), "debtIn5y": get("GGXWDG_NGDP", year + 5), "balance": bal,
+            "intRev": round(100 * (prim - bal) / rev, 1) if None not in (prim, bal, rev) and rev else None,
+            "rating": rating_block(rts.get(rname)), "spark": [v for _, v in ten[-36:]],
+            "stale": now - last_t > 75 * DAY,
+        })
+    return out
+
+
+def funds_block(got):
+    prices = (got or ({}, None))[0] or {}
+    out = []
+    for f in FUNDS:
+        p = prices.get(f["yahoo"]) or {}
+        out.append({**{k: f[k] for k in ("group", "name", "provider", "yahoo", "hedged", "dist", "ter", "source")},
+                    **{k: p.get(k) for k in ("price", "ccy", "r1m", "r3m", "r1y", "time", "spark")}})
     return out
 
 

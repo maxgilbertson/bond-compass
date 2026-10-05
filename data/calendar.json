@@ -1,1 +1,727 @@
-{"checked": null, "events": []}
+{
+ "checked": "2026-10-05",
+ "note": "From each central bank's and statistics office's own published calendar. Fed dates are tentative until confirmed at the previous meeting; ONS dates from Feb 2027 are provisional. US BLS and Eurostat 2027 dates and Riksbank dates after June 2027 weren't published yet.",
+ "events": [
+  {
+   "date": "2026-10-14",
+   "type": "data",
+   "who": "US BLS",
+   "what": "CPI (Sep 2026)",
+   "source": "https://www.bls.gov/schedule/news_release/cpi.htm"
+  },
+  {
+   "date": "2026-10-21",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Sep 2026)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2026-10-28",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement + MPR",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2026-10-28",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2026-10-28",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (Review)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2026-10-29",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2026-10-30",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day) + Outlook Report",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2026-11-03",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2026-11-04",
+   "type": "data",
+   "who": "Eurostat",
+   "what": "Euro area flash HICP (Oct 2026)",
+   "source": "https://ec.europa.eu/eurostat/news/release-calendar"
+  },
+  {
+   "date": "2026-11-04",
+   "type": "central bank",
+   "who": "Sveriges Riksbank",
+   "what": "Policy rate decision published",
+   "source": "https://www.riksbank.se/en-gb/press-and-published/calendar/calendar-2026/"
+  },
+  {
+   "date": "2026-11-05",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision + Monetary Policy Report",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2026-11-06",
+   "type": "data",
+   "who": "US BLS",
+   "what": "Employment Situation (jobs report) (Oct 2026)",
+   "source": "https://www.bls.gov/schedule/news_release/empsit.htm"
+  },
+  {
+   "date": "2026-11-10",
+   "type": "data",
+   "who": "US BLS",
+   "what": "CPI (Oct 2026)",
+   "source": "https://www.bls.gov/schedule/news_release/cpi.htm"
+  },
+  {
+   "date": "2026-11-18",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Oct 2026)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2026-12-01",
+   "type": "data",
+   "who": "Eurostat",
+   "what": "Euro area flash HICP (Nov 2026)",
+   "source": "https://ec.europa.eu/eurostat/news/release-calendar"
+  },
+  {
+   "date": "2026-12-04",
+   "type": "data",
+   "who": "US BLS",
+   "what": "Employment Situation (jobs report) (Nov 2026)",
+   "source": "https://www.bls.gov/schedule/news_release/empsit.htm"
+  },
+  {
+   "date": "2026-12-08",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2026-12-09",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2026-12-09",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision + SEP",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2026-12-09",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (MPS)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2026-12-10",
+   "type": "data",
+   "who": "US BLS",
+   "what": "CPI (Nov 2026)",
+   "source": "https://www.bls.gov/schedule/news_release/cpi.htm"
+  },
+  {
+   "date": "2026-12-10",
+   "type": "central bank",
+   "who": "Swiss National Bank",
+   "what": "Monetary policy assessment",
+   "source": "https://www.snb.ch/en/services-events/digital-services/event-schedule"
+  },
+  {
+   "date": "2026-12-16",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Nov 2026)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2026-12-16",
+   "type": "central bank",
+   "who": "Sveriges Riksbank",
+   "what": "Policy rate decision published",
+   "source": "https://www.riksbank.se/en-gb/press-and-published/calendar/calendar-2026/"
+  },
+  {
+   "date": "2026-12-17",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2026-12-17",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2026-12-18",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day)",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-01-20",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Dec 2026)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-01-22",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day) + Outlook Report",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-01-27",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement + MPR",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-01-27",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-02-03",
+   "type": "central bank",
+   "who": "Sveriges Riksbank",
+   "what": "Policy rate decision published",
+   "source": "https://www.riksbank.se/en-gb/press-and-published/calendar/calendar-2027/"
+  },
+  {
+   "date": "2027-02-04",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision + Monetary Policy Report",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-02-04",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-02-09",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-02-10",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (Review)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-02-17",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Jan 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-03-03",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-03-17",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision + SEP",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-03-17",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (MPS)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-03-18",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-03-18",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day)",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-03-18",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-03-18",
+   "type": "central bank",
+   "who": "Swiss National Bank",
+   "what": "Monetary policy assessment",
+   "source": "https://www.snb.ch/en/services-events/digital-services/event-schedule"
+  },
+  {
+   "date": "2027-03-23",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-03-24",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Feb 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-03-24",
+   "type": "central bank",
+   "who": "Sveriges Riksbank",
+   "what": "Policy rate decision published",
+   "source": "https://www.riksbank.se/en-gb/press-and-published/calendar/calendar-2027/"
+  },
+  {
+   "date": "2027-04-21",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Mar 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-04-28",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement + MPR",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-04-28",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day) + Outlook Report",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-04-28",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-04-29",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision + Monetary Policy Report",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-04-29",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-05-04",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-05-05",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (Review)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-05-05",
+   "type": "central bank",
+   "who": "Sveriges Riksbank",
+   "what": "Policy rate decision published",
+   "source": "https://www.riksbank.se/en-gb/press-and-published/calendar/calendar-2027/"
+  },
+  {
+   "date": "2027-05-19",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Apr 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-06-02",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-06-09",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision + SEP",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-06-10",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-06-11",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day)",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-06-16",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (May 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-06-16",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (MPS)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-06-17",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-06-22",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-06-22",
+   "type": "central bank",
+   "who": "Sveriges Riksbank",
+   "what": "Policy rate decision published",
+   "source": "https://www.riksbank.se/en-gb/press-and-published/calendar/calendar-2027/"
+  },
+  {
+   "date": "2027-06-24",
+   "type": "central bank",
+   "who": "Swiss National Bank",
+   "what": "Monetary policy assessment",
+   "source": "https://www.snb.ch/en/services-events/digital-services/event-schedule"
+  },
+  {
+   "date": "2027-07-21",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Jun 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-07-21",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement + MPR",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-07-22",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day) + Outlook Report",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-07-22",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-07-28",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-07-29",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision + Monetary Policy Report",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-08-04",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (Review)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-08-10",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-08-18",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Jul 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-09-08",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-09-09",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-09-15",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Aug 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-09-15",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision + SEP",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-09-15",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (MPS)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-09-16",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-09-22",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day)",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-09-23",
+   "type": "central bank",
+   "who": "Swiss National Bank",
+   "what": "Monetary policy assessment",
+   "source": "https://www.snb.ch/en/services-events/digital-services/event-schedule"
+  },
+  {
+   "date": "2027-09-28",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-10-20",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Sep 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-10-27",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement + MPR",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-10-27",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-10-27",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (Review)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-10-28",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-10-29",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day) + Outlook Report",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  },
+  {
+   "date": "2027-11-02",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-11-04",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision + Monetary Policy Report",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-11-17",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Oct 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-12-08",
+   "type": "central bank",
+   "who": "Bank of Canada",
+   "what": "Policy rate announcement",
+   "source": "https://www.bankofcanada.ca/2026/07/bank-canada-publishes-2027-schedule-policy-interest-rate-announcements-other-major-publications/"
+  },
+  {
+   "date": "2027-12-08",
+   "type": "central bank",
+   "who": "Federal Reserve",
+   "what": "FOMC decision + SEP",
+   "source": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  },
+  {
+   "date": "2027-12-08",
+   "type": "central bank",
+   "who": "Reserve Bank of New Zealand",
+   "what": "OCR decision (MPS)",
+   "source": "https://www.rbnz.govt.nz/news-and-events/how-we-release-information/ocr-decision-dates-and-financial-stability-report-dates-to-feb-2028"
+  },
+  {
+   "date": "2027-12-14",
+   "type": "central bank",
+   "who": "Reserve Bank of Australia",
+   "what": "Monetary Policy Board decision (day 2)",
+   "source": "https://www.rba.gov.au/schedules-events/board-meeting-schedules.html"
+  },
+  {
+   "date": "2027-12-15",
+   "type": "data",
+   "who": "ONS",
+   "what": "UK CPI (Nov 2027, provisional)",
+   "source": "https://www.ons.gov.uk/releasecalendar?keywords=Consumer%20price%20inflation&release-type=type-upcoming"
+  },
+  {
+   "date": "2027-12-16",
+   "type": "central bank",
+   "who": "Bank of England",
+   "what": "MPC Bank Rate decision",
+   "source": "https://www.bankofengland.co.uk/monetary-policy/upcoming-mpc-dates"
+  },
+  {
+   "date": "2027-12-16",
+   "type": "central bank",
+   "who": "European Central Bank",
+   "what": "Governing Council monetary policy decision",
+   "source": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+  },
+  {
+   "date": "2027-12-16",
+   "type": "central bank",
+   "who": "Swiss National Bank",
+   "what": "Monetary policy assessment",
+   "source": "https://www.snb.ch/en/services-events/digital-services/event-schedule"
+  },
+  {
+   "date": "2027-12-17",
+   "type": "central bank",
+   "who": "Bank of Japan",
+   "what": "Monetary Policy Meeting decision (final day)",
+   "source": "https://www.boj.or.jp/en/mopo/mpmsche_minu/index.htm"
+  }
+ ]
+}

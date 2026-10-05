@@ -15,6 +15,7 @@ MARKETS = [
     ("BR", "Brazil", "Americas", "BRL", "BRA", "BR", 2, "1Y 2Y 10Y", "3M 6M", [-52, -10]),
     ("MX", "Mexico", "Americas", "MXN", "MEX", "MX", 2, "1Y 3Y 10Y", "30Y", [-102, 23]),
     ("CL", "Chile", "Americas", "CLP", "CHL", "CL", 2, "10Y", "1Y 2Y 4Y", [-71, -33]),
+    ("PE", "Peru", "Americas", "PEN", "PER", "PE", 2, "10Y", "", [-75, -10]),
     ("GB", "United Kingdom", "Europe", "GBP", "GBR", "GB", 2,
      "1M 3M 6M 1Y 2Y 3Y 5Y 7Y 10Y 15Y 20Y 30Y", "4Y 6Y 8Y 9Y 25Y 40Y", [-2, 54]),
     ("DE", "Germany", "Europe", "EUR", "DEU", "XM", 1,
@@ -36,6 +37,8 @@ MARKETS = [
     ("FI", "Finland", "Europe", "EUR", "FIN", "XM", 1, "2Y 3Y 5Y 10Y", "4Y", [26, 64]),
     ("CH", "Switzerland", "Europe", "CHF", "CHE", "CH", 1, "2Y 10Y", "", [8, 47]),
     ("SE", "Sweden", "Europe", "SEK", "SWE", "SE", 1, "2Y 10Y", "", [16, 62]),
+    ("NO", "Norway", "Europe", "NOK", "NOR", "NO", 1, "3M 6M 1Y 3Y 5Y 7Y 10Y", "", [9, 61]),
+    ("PL", "Poland", "Europe", "PLN", "POL", "PL", 1, "1Y 2Y 3Y 5Y 7Y 10Y", "", [19, 52]),
     ("HU", "Hungary", "Europe", "HUF", "HUN", "HU", 1, "1Y 3Y 5Y 10Y 15Y", "", [19.5, 47]),
     ("TR", "Turkey", "Europe", "TRY", "TUR", "TR", 2, "2Y 10Y", "", [35, 39]),
     ("JP", "Japan", "Asia-Pacific", "JPY", "JPN", "JP", 2,
@@ -50,18 +53,23 @@ MARKETS = [
     ("KR", "South Korea", "Asia-Pacific", "KRW", "KOR", "KR", 2, "5Y 10Y 50Y", "1Y 2Y 3Y 4Y 20Y", [128, 36]),
     ("TH", "Thailand", "Asia-Pacific", "THB", "THA", "TH", 2, "10Y", "", [101, 15]),
     ("HK", "Hong Kong", "Asia-Pacific", "HKD", "HKG", "HK", 2, "10Y", "1Y 2Y 3Y 5Y 7Y", [114.2, 22.3]),
+    ("SG", "Singapore", "Asia-Pacific", "SGD", "SGP", None, 2, "6M 1Y 2Y 5Y 10Y 15Y 20Y 30Y 50Y", "", [103.8, 1.35]),
+    ("MY", "Malaysia", "Asia-Pacific", "MYR", "MYS", "MY", 2, "3Y 5Y 7Y 10Y", "", [102, 4]),
+    ("PH", "Philippines", "Asia-Pacific", "PHP", "PHL", "PH", 2, "1M 3M 6M 1Y 2Y 3Y 4Y 5Y 7Y 10Y 20Y 25Y", "", [122, 12]),
     ("ZA", "South Africa", "Middle East & Africa", "ZAR", "ZAF", "ZA", 2, "3M 5Y 10Y 20Y 30Y", "", [24, -29]),
     ("EG", "Egypt", "Middle East & Africa", "EGP", "EGY", None, 2, "3M 1Y", "5Y 10Y", [30, 27]),
     ("NG", "Nigeria", "Middle East & Africa", "NGN", "NGA", None, 2, "10Y", "", [8, 9.5]),
 ]
 EURO = {"DE", "FR", "IT", "ES", "NL", "BE", "AT", "PT", "GR", "IE", "FI"}
 DEVELOPED = {"US", "CA", "GB", "DE", "FR", "IT", "ES", "NL", "BE", "AT", "PT", "GR", "IE", "FI", "CH", "SE",
-             "JP", "AU", "NZ", "HK"}
+             "JP", "AU", "NZ", "HK", "NO", "SG"}
+# Markets whose yields come from official sources other than CNBC (extra_sources.py)
+EXTRA = {"NO", "PL", "SG", "MY", "PH", "PE"}
 ISO = {"US": "840", "CA": "124", "BR": "076", "MX": "484", "CL": "152", "GB": "826", "DE": "276", "FR": "250",
        "IT": "380", "ES": "724", "NL": "528", "BE": "056", "AT": "040", "PT": "620", "GR": "300", "IE": "372",
        "FI": "246", "CH": "756", "SE": "752", "HU": "348", "TR": "792", "JP": "392", "AU": "036", "NZ": "554",
        "CN": "156", "IN": "356", "ID": "360", "KR": "410", "TH": "764", "HK": "344", "ZA": "710", "EG": "818",
-       "NG": "566"}
+       "NG": "566", "NO": "578", "PL": "616", "SG": "702", "MY": "458", "PH": "608", "PE": "604"}
 # The name Wikipedia's list of sovereign credit ratings uses, where it differs from ours
 RATING_NAME = {"KR": "South Korea", "HK": "Hong Kong"}
 
@@ -71,6 +79,8 @@ def tenor_years(t):
 
 
 def symbol(code, tenor, live_only=False):
+    if code in EXTRA:
+        return f"{code}{tenor}@X"
     if live_only:
         return f"{code}{tenor}T=RR"
     return f"US{tenor}" if code == "US" else f"{code}{tenor}-{code}"
@@ -126,3 +136,18 @@ IMF = {
 }
 
 YAHOO = ["^MOVE", "GBP=X"]  # bond-market volatility (MOVE index); pounds per US dollar
+
+
+# Which London-listed fund groups (data/etfs.json) give a UK investor exposure to each market's government bonds
+def fund_groups(code, dm):
+    if code == "GB":
+        return ["UK gilts", "Short-dated gilts", "Long-dated gilts", "UK index-linked gilts"]
+    if code == "US":
+        return ["US Treasuries"]
+    if code in EURO:
+        return ["Euro-area government bonds"]
+    if code == "JP":
+        return ["Japanese government bonds"]
+    if not dm:
+        return ["EM government bonds, local currency"]
+    return ["Global government bonds GBP-hedged"]

@@ -195,7 +195,7 @@ function render(){
     <div class="view" data-view="countries">${countriesHTML()}</div>
     <div class="view" data-view="credit">${creditHTML(d)}</div>
     <div class="view" data-view="banks">${banksHTML()}</div>
-    <div class="view" data-view="portfolio">${portfolioHTML()}</div>
+    <div class="view" data-view="portfolio">${portfolioHTML()}${waysHTML(d)}</div>
     <div class="view" data-view="briefing">${briefingHTML()}</div>
     <div class="view" data-view="record">${recordHTML(d)}</div>
     <div class="view" data-view="guide">${guideHTML(d)}</div>
@@ -430,7 +430,21 @@ function countriesHTML(){
   <section>${secHead({eyebrow:"Debt arithmetic",title:"Can each government keep its debt steady?",lead:"The key sum for a bond investor: if the interest rate on new debt (r) is above the economy's nominal growth (g), debt keeps rising as a share of GDP unless the government runs a surplus before interest."})}
     <div class="tablebox">${fiscalTable()}</div>
     ${more("rghelp",`<p><b>Needed primary balance</b> = (r − g) ÷ (1 + g) × debt. It's the surplus before interest that would hold debt steady as a share of the economy, using today's 10-year yield as r and the IMF's average nominal growth forecast (real growth plus inflation, next 5 years) as g.</p>
-      <p><b>Budget gap</b> = needed minus the primary balance the IMF expects this year. Positive = debt on course to keep rising at today's yields. It's a rough guide: governments borrow at many maturities, and the average cost of existing debt (<b>Avg cost</b>) is usually below today's yields, so the full effect arrives slowly as debt is refinanced (<b>Refi gap</b>).</p>`,"How the sums work")}</section>`;
+      <p><b>Budget gap</b> = needed minus the primary balance the IMF expects this year. Positive = debt on course to keep rising at today's yields. It's a rough guide: governments borrow at many maturities, and the average cost of existing debt (<b>Avg cost</b>) is usually below today's yields, so the full effect arrives slowly as debt is refinanced (<b>Refi gap</b>).</p>`,"How the sums work")}</section>
+  ${monthlyHTML(S.data)}`;
+}
+function monthlyHTML(d){
+  const ms=d.monthly||[]; if(!ms.length) return "";
+  return `<section>${secHead({eyebrow:"More markets",title:"Monthly data only",lead:"Six more government bond markets where free official data is only published monthly. Kept separate from the live tables and the score, because a month-old yield can't be compared fairly with today's."})}
+    <div class="tablebox"><table><thead><tr><th class="l sticky">Country</th><th>10-year yield</th><th class="l">Month</th><th>3-month change</th><th>1-year change</th><th class="l">Other maturities</th><th>3-year range</th><th>Real yield</th><th>Rating</th><th>Debt<small>% GDP</small></th><th>Interest<small>% revenue</small></th><th>Past 3 years</th></tr></thead>
+    <tbody>${ms.map(m=>`<tr style="cursor:default"><td class="l sticky"><b>${esc(m.name)}</b><small class="muted" style="display:block;font-size:11px">${esc(m.source)}</small></td>
+      <td><b class="num">${yld(m.y)}</b></td><td class="l"><span class="num ${m.stale?"warn":""}">${new Date(m.asOf*1000).toLocaleDateString(undefined,{month:"short",year:"numeric",timeZone:"UTC"})}</span></td>
+      <td><span class="num ${ycls(m.d3m)}">${bpf(m.d3m)}</span></td><td><span class="num ${ycls(m.d1y)}">${bpf(m.d1y)}</span></td>
+      <td class="l"><span class="num">${Object.entries(m.other||{}).sort((a,b)=>tenorYears(a[0])-tenorYears(b[0])).map(([t,v])=>`${t} ${yld(v)}`).join(" · ")||"–"}</span></td>
+      <td style="min-width:120px">${rangeBar(m.y,m.lo3y,m.hi3y)}<small class="num muted">${yld(m.lo3y)} – ${yld(m.hi3y)}</small></td>
+      <td><span class="num ${cls(m.realY)}">${yld(m.realY)}</span></td><td>${m.rating?`<span class="rt ${m.rating.ig?"ig":"hy"}">${esc(m.rating.label)}</span>`:"–"}</td>
+      <td><span class="num">${isNum(m.debt)?Math.round(m.debt):"–"}</span></td><td><span class="num">${isNum(m.intRev)?Math.round(m.intRev)+"%":"–"}</span></td><td>${sparkSVG(m.spark)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="note">Monthly averages (Israel: zero-coupon yields; Czech Republic, Denmark and Romania: the EU's harmonised 10-year rate published by the ECB). Real yield uses the IMF's inflation forecast, as elsewhere. No free daily source was found for these, or for Saudi Arabia.</p></section>`;
 }
 function fiscalTable(){
   const cols=["rating","debt","debt5","balance","primary","interest","intRev","effRate","refi","rg","gap","growth"];
@@ -680,7 +694,7 @@ function portfolioHTML(){
       <li>Scenarios are illustrations, not forecasts. Real sell-offs rarely move every yield by the same amount.</li></ul>`,"How this works")}</section>`;
 }
 function bindPortfolio(){
-  const save=()=>{ store.set("port",S.port); const v=document.querySelector('[data-view="portfolio"]'); v.innerHTML=portfolioHTML(); restoreOpen(v); bindPortfolio(); };
+  const save=()=>{ store.set("port",S.port); const v=document.querySelector('#app [data-view="portfolio"]'); v.innerHTML=portfolioHTML()+waysHTML(S.data); restoreOpen(v); bindPortfolio(); bindTips(v); };
   document.querySelectorAll("[data-pc]").forEach(e=>e.onchange=()=>{ const p=S.port[+e.dataset.pc]; p.c=e.value; const r=byCode(p.c); p.t=r.bonds.some(b=>b.tenor===p.t)?p.t:r.bench; save(); });
   document.querySelectorAll("[data-pt]").forEach(e=>e.onchange=()=>{ S.port[+e.dataset.pt].t=e.value; save(); });
   document.querySelectorAll("[data-pa]").forEach(e=>e.onchange=()=>{ S.port[+e.dataset.pa].amt=Math.max(0,+e.value||0); save(); });
@@ -688,6 +702,27 @@ function bindPortfolio(){
   document.querySelectorAll("[data-pr]").forEach(e=>e.onclick=()=>{ S.port.splice(+e.dataset.pr,1); save(); });
   $("#portAdd")&&($("#portAdd").onclick=()=>{ S.port.push({c:"US",t:"10Y",amt:10000,h:true}); save(); });
   $("#portReset")&&($("#portReset").onclick=()=>{ S.port=PORT_DEFAULT.map(x=>({...x})); save(); });
+}
+
+/* ---------- ways to buy: London-listed government bond funds */
+function fundRow(f){ const money=f.price==null?"–":(f.ccy==="USD"?"$":"£")+num(f.price,2);
+  return `<tr style="cursor:default"><td class="l" style="white-space:normal;min-width:240px"><a href="${esc(f.source)}" target="_blank" rel="noopener">${esc(f.name)}</a></td>
+    <td class="l"><span class="num">${esc(f.yahoo.replace(".L",""))}</span></td><td class="l">${f.hedged?tag("Hedged to £","info"):tag("Not hedged")}</td>
+    <td><span class="num">${num(f.ter,2)}%</span></td><td><span class="num">${money}</span></td>
+    <td><span class="num ${cls(f.r3m)}">${pct(f.r3m,1)}</span></td><td><span class="num ${cls(f.r1y)}">${pct(f.r1y,1)}</span></td><td>${sparkSVG(f.spark,{invert:false})}</td></tr>`; }
+function fundsTable(list,{groups=true}={}){
+  if(!list||!list.length) return "";
+  const gs=[...new Set(list.map(f=>f.group))];
+  return `<div class="tablebox"><table><thead><tr><th class="l">Fund</th><th class="l" title="London Stock Exchange ticker">Ticker</th><th class="l">Currency</th><th title="Yearly fee (ongoing charge) from the provider">Fee</th><th>Price</th><th title="Total return with income reinvested, in the fund's trading currency">3 months</th><th>1 year</th><th>Past year</th></tr></thead>
+    <tbody>${gs.map(g=>(groups?`<tr style="cursor:default"><td class="l" colspan="8" style="background:var(--surface2);font-family:var(--display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:12px;color:var(--muted)">${esc(g)}</td></tr>`:"")+list.filter(f=>f.group===g).map(fundRow).join("")).join("")}</tbody></table></div>`; }
+function waysHTML(d){
+  if(!d.funds||!d.funds.length) return "";
+  return `<section id="ways">${secHead({eyebrow:"Ways to buy",title:"Funds that hold these bonds",lead:"Widely held government (and, for context, corporate) bond funds listed on the London Stock Exchange, with live prices and returns including income. Fees are from each provider's own page. Not recommendations: check a fund's factsheet before buying."})}
+    ${fundsTable(d.funds)}
+    ${more("fundhelp",`<ul><li><b>Hedged to £</b> funds remove most of the currency risk, so they behave like the "hedged into £" yields in the tables. Unhedged funds also rise and fall with the currency.</li>
+      <li><b>Fee</b> is the yearly ongoing charge. On a fund yielding 4%, a 0.07% fee is small; 0.50% is a noticeable share of the income.</li>
+      <li><b>Individual gilts</b> can also be bought directly through most UK investment platforms; gains on gilts are free of capital gains tax.</li>
+      <li>Prices are delayed and from Yahoo Finance. Fund list checked ${esc(isoDate("2026-10-05"))}.</li></ul>`,"Reading this table")}</section>`;
 }
 
 /* ---------- spread between any two markets, and forward rates */
@@ -912,6 +947,7 @@ function openDetail(code){
         ["1y return in £",pct(tr1(r,"y1","gbp"),1),`local ${pct(tr1(r,"y1","local"),1)} · hedged ${pct(tr1(r,"y1","hedged"),1)}`]])}
       ${so.length?`<div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:8px">What stands out</div><ul class="why">${so.map(([t,x])=>`<li><span class="${t}">●</span> ${esc(x)}</li>`).join("")}</ul></div>`:""}
       <div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:10px">Score ingredients (rank among ${rows().length} markets, 0–100)</div>${partsHTML(r)}</div>
+      ${(()=>{ const fs=(S.data.funds||[]).filter(f=>(r.funds||[]).includes(f.group)); return fs.length?`<div><div class="eyebrow" style="margin:4px 0 8px">Ways to own ${esc(r.code==="GB"||r.code==="US"||r.code==="JP"||r.euro?bondName(r):"bonds like these")} from the UK</div>${fundsTable(fs,{groups:fs.some(f=>f.group!==fs[0].group)})}<p class="note">${r.euro?"Euro-area funds hold all the euro governments together, not just "+esc(r.name)+".":!r.dm&&r.code!=="US"?"Emerging-market funds hold many countries' bonds; "+esc(r.name)+" is only part of each.":["GB","US","JP"].includes(r.code)?"":"No London-listed fund holds only "+esc(r.name)+"'s bonds; global funds include them alongside other governments."} Not recommendations.</p></div>`:""; })()}
       ${r.m.path&&r.m.path.length>=2?`<div class="card chartbox"><div class="row"><span class="eyebrow">Score since the daily record began</span><span class="muted" style="font-size:12.5px">${isNum(r.m.d1w)?`${sgnN(r.m.d1w)} this week`:""}${isNum(r.m.d1m)?` · ${sgnN(r.m.d1m)} over 4 weeks`:""}</span></div><div id="dScore"></div></div>`:""}
     </div>
     <div class="dgrid" data-pane="bonds" hidden>
@@ -1023,9 +1059,9 @@ function bindControls(){
 }
 function bindSort(){ document.querySelectorAll("#monTable th[data-sort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.sort;
   S.sort={k,dir:S.sort.k===k?-S.sort.dir:(k==="name"?1:-1)}; store.set("sort",S.sort); $("#monTable").innerHTML=monitorTable(); bindTips($("#monTable")); bindSort(); }); }
-function redrawMonitor(){ const v=document.querySelector('[data-view="monitor"]'); v.innerHTML=monitorHTML(); restoreOpen(v); bindControls(); bindTips(v); }
-function redrawCurves(){ const v=document.querySelector('[data-view="curves"]'); v.innerHTML=curvesHTML(); restoreOpen(v); bindControls(); bindPair(); bindTips(v); drawCurves(); drawPair(); }
-function redrawBanks(){ const v=document.querySelector('[data-view="banks"]'); v.innerHTML=banksHTML(); bindControls(); drawBanks(); }
+function redrawMonitor(){ const v=document.querySelector('#app [data-view="monitor"]'); v.innerHTML=monitorHTML(); restoreOpen(v); bindControls(); bindTips(v); }
+function redrawCurves(){ const v=document.querySelector('#app [data-view="curves"]'); v.innerHTML=curvesHTML(); restoreOpen(v); bindControls(); bindPair(); bindTips(v); drawCurves(); drawPair(); }
+function redrawBanks(){ const v=document.querySelector('#app [data-view="banks"]'); v.innerHTML=banksHTML(); bindControls(); drawBanks(); }
 
 /* ---------------------------------------------------------------- go */
 function drawOverview(){ const el=$("#ovScatter"); if(!el) return;

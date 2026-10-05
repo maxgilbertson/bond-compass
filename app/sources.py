@@ -47,16 +47,16 @@ def cached(name, max_age, fn, complete=None, retry=6 * 3600):
     path = CACHE / f"{name}.json"
     lock = _locks.setdefault(name, threading.Lock())
     with lock:
-        old = None
+        old, seeded = None, False
         # the saved copy, or failing that the starter copy kept in the repository (data/seed/)
         for f in (path, ROOT / "data" / "seed" / f"{name}.json"):
             if old is None and f.exists():
                 try:
-                    old = json.loads(f.read_text(encoding="utf-8"))
+                    old, seeded = json.loads(f.read_text(encoding="utf-8")), f != path
                 except ValueError:
                     old = None
         age = time.time() - old["at"] if old else None
-        if old and age < max_age and (complete is None or complete(old["data"]) or age < retry):
+        if old and age < max_age and (complete is None or complete(old["data"]) or (age < retry and not seeded)):
             return old["data"], old["at"]
         try:
             data = fn(old["data"] if old else None)
@@ -187,6 +187,8 @@ def fred(ids):
 # ---------------------------------------------------------------- IMF World Economic Outlook
 
 def imf(indicators, countries):
+    has_countries = lambda d: sum(c in (d.get("GGXWDG_NGDP") or {}) for c in countries) >= len(countries) - 1
+
     def one(ind):
         d = json.loads(get(f"https://www.imf.org/external/datamapper/api/v1/{ind}", timeout=60, tries=2))
         vals = d["values"][ind]
@@ -194,7 +196,8 @@ def imf(indicators, countries):
 
     def fetch(old):
         res = dict(old or {})
-        todo = indicators if not old or old.get("_full", 0) < time.time() - 7 * 86400 else [i for i in indicators if i not in old]
+        stale = not old or old.get("_full", 0) < time.time() - 7 * 86400 or not has_countries(old)
+        todo = indicators if stale else [i for i in indicators if i not in old]
         if todo == indicators:
             res["_full"] = time.time()
         with ThreadPoolExecutor(max_workers=2) as ex:  # the IMF's firewall turns away bursts of requests
@@ -202,7 +205,7 @@ def imf(indicators, countries):
                 if v:
                     res[ind] = v
         return res if sum(i in res for i in indicators) >= len(indicators) // 2 else None
-    data, at = cached("imf", 7 * 86400, fetch, complete=lambda d: all(i in d for i in indicators))
+    data, at = cached("imf", 7 * 86400, fetch, complete=lambda d: all(i in d for i in indicators) and has_countries(d))
     # JSON keys are strings; turn the years back into numbers
     return {ind: {c: {int(y): v for y, v in s.items()} for c, s in per.items()} for ind, per in data.items() if ind != "_full"}, at
 
@@ -222,7 +225,7 @@ def policy_rates(codes):
         for s in res.values():
             s.sort()
         return res or None
-    return cached("bis", 12 * 3600, fetch)
+    return cached("bis", 12 * 3600, fetch, complete=lambda d: all(c in d for c in codes), retry=3600)
 
 
 def policy_rates_monthly(codes):
@@ -239,7 +242,7 @@ def policy_rates_monthly(codes):
         for s in res.values():
             s.sort()
         return res or None
-    return cached("bis_monthly", 7 * 86400, fetch)
+    return cached("bis_monthly", 7 * 86400, fetch, complete=lambda d: all(c in d for c in codes))
 
 
 # ---------------------------------------------------------------- Yahoo: currencies and the MOVE index
@@ -254,6 +257,41 @@ def yahoo(symbol, rng="2y"):
     if meta.get("regularMarketPrice") and pts and meta.get("regularMarketTime", 0) > pts[-1][0]:
         pts.append([meta["regularMarketTime"], meta["regularMarketPrice"]])
     return {"t": [p[0] for p in pts], "c": [p[1] for p in pts], "time": meta.get("regularMarketTime")}
+
+
+def fund_prices(funds):
+    """Price, currency and total returns (distributions reinvested) of the London-listed bond funds, hourly."""
+    def one(f):
+        url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(f['yahoo'])}"
+               "?range=1y&interval=1d&includeAdjustedClose=true")
+        res = json.loads(get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) BondCompass/1.0"},
+                             timeout=25))["chart"]["result"][0]
+        q, meta = res["indicators"], res["meta"]
+        adj = (q.get("adjclose") or [{}])[0].get("adjclose") or q["quote"][0]["close"]
+        pts = [[t, a] for t, a in zip(res.get("timestamp") or [], adj) if a]
+        if len(pts) < 20:
+            return None
+        # a bond fund never moves 40% in a day: a jump like that is a share split or consolidation that the
+        # price history hasn't been adjusted for, so rescale everything before it
+        for k in range(len(pts) - 1, 0, -1):
+            ratio = pts[k][1] / pts[k - 1][1]
+            if ratio < 0.6 or ratio > 1.6:
+                for j in range(k):
+                    pts[j][1] *= ratio
+        pence = meta.get("currency") == "GBp"
+        price = meta.get("regularMarketPrice") or q["quote"][0]["close"][-1]
+        now = pts[-1][0]
+        back = lambda days: next((a for t, a in reversed(pts) if t <= now - days * 86400), None)
+        r = lambda days: (pts[-1][1] / back(days) - 1) if back(days) else None
+        return {"yahoo": f["yahoo"], "price": price / 100 if pence else price, "ccy": "GBP" if pence else meta.get("currency"),
+                "r1m": r(30), "r3m": r(91), "r1y": (pts[-1][1] / pts[0][1] - 1) if pts[0][0] <= now - 350 * 86400 else None,
+                "time": meta.get("regularMarketTime"), "spark": [round(a, 4) for _, a in pts[::5]]}
+
+    def fetch(old):
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            got = {f["yahoo"]: d for f, d in zip(funds, ex.map(lambda f: _safe(one, f), funds)) if d}
+        return got if len(got) >= len(funds) // 2 else None
+    return cached("funds", 3600, fetch)
 
 
 def yahoo_all(symbols):
@@ -286,7 +324,7 @@ def ratings(names):
                                            ensure_ascii=False), encoding="utf-8")
         return {"checked": date.today().isoformat(), "ratings": res}
     try:
-        data, _ = cached("ratings", 7 * 86400, fetch)
+        data, _ = cached("ratings", 7 * 86400, fetch, complete=lambda d: all(n in d.get("ratings", {}) for n in names), retry=3600)
         return data
     except Exception:  # noqa: BLE001 - fall back to the copy kept in the repository
         return json.loads(RATINGS_FILE.read_text(encoding="utf-8"))
