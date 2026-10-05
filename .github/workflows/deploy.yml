@@ -12,13 +12,16 @@ permissions:
   pages: write
   id-token: write
 
+# A newer run replaces one still running or stuck in GitHub's queue, so a single stuck run can't hold up
+# every later update (each run publishes the latest prices anyway, so nothing is lost).
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -40,6 +43,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
