@@ -219,6 +219,63 @@ function tile({label,code,val,unit="%",chg,chg2,lab2="1m",spark,hint,open,dp=2,i
     ${spark?sparkSVG(spark,{w:160,h:30,invert:inv}):""}${hint?`<div class="hint">${hint}</div>`:""}</div>`;
 }
 function spreadSpark(a,b){ if(!a||!b) return null; const n=Math.min(a.length,b.length); return a.slice(-n).map((v,i)=>(v-b.slice(-n)[i])*100); }
+/* ---------- the long run, and buying on IBKR (all 38 funds and gilts by ISIN checked in IBKR's search, 7 Oct 2026) */
+// fund groups that hold one country's bonds only; the rest are wider baskets (euro area, global, emerging markets)
+const SINGLE = {"UK gilts":"GB","Short-dated gilts":"GB","Long-dated gilts":"GB","UK index-linked gilts":"GB","US Treasuries":"US","Japanese government bonds":"JP"};
+const fundsFor = r => (S.data.funds||[]).filter(f=>(r.funds||[]).includes(f.group));
+const bestFund = r => { const fs=fundsFor(r); return fs.find(f=>f.hedged)||fs[0]||null; };
+const fundTick = f => f? f.yahoo.replace(/\.L$/,"") : "";
+// "the United States' bonds", "the Philippines' bonds", "Japan's bonds"
+const poss = n => { const t=/^(United |Philippines|Netherlands|Czech)/.test(n)? "the "+n : n; return /s$/.test(t)? t+"'" : t+"'s"; };
+const conventionalGilts = d => ((d.gilts||{}).gilts||[]).filter(g=>!g.linker&&isNum(g.ytm)&&isNum(g.yrs)&&g.yrs>0.5);
+function longRunBonds(d){
+  const gl=conventionalGilts(d), near=T=>gl.slice().sort((a,b)=>Math.abs(a.yrs-T)-Math.abs(b.yrs-T))[0];
+  const picks=[2,5,10,20].map(near).filter((g,i,a)=>g&&a.indexOf(g)===i);
+  const bt=d.backtest, F=t=>(d.funds||[]).find(f=>fundTick(f)===t);
+  // where a fund holds one market, that market's yield in pounds is the best guide to its long-run return, less the fee
+  const guide=(code,tenor,hedged)=>{ const r=byCode(code), b=r&&(r.bonds.find(x=>x.tenor===tenor)||B(r)); const y=b&&(hedged?b.hedgedGbp:b.y);
+    return isNum(y)? {y, how:`${poss(r.name)} ${b.tenor} yield${hedged?", hedged into £":""}`} : null; };
+  const options=[
+    {f:F("VGOV"), what:"Gilts of every maturity, in pounds", g:guide("GB","10Y",false)},
+    {f:F("IGTM"), what:"US Treasuries maturing in 7 to 10 years, hedged into pounds", g:guide("US","10Y",true)},
+    {f:F("JGBH"), what:"Japanese government bonds, hedged into pounds", g:guide("JP","10Y",true)},
+    {f:F("VGGP"), what:"Governments across the developed world, hedged into pounds", g:null},
+  ].filter(o=>o.f);
+  const fundCard=o=>`<div class="card core"><div><div class="eyebrow">${esc(o.what)}</div><h3>${esc(o.f.name)}</h3></div>
+    <div class="buyline">Buy as <span class="tick">${esc(fundTick(o.f))}</span>London · fee ${num(o.f.ter,2)}% a year ${o.f.hedged?tag("Hedged into £","info"):""}</div>
+    <div class="core-stats">${o.g?`<div title="${esc(`Based on ${o.g.how}, less the fund's yearly fee`)}"><span>Best guide to its long-run return</span><b>${yld(o.g.y-o.f.ter)}</b></div>`
+        :`<div><span>Best guide to its long-run return</span><b style="font-size:14px;font-family:var(--body)">its yield: a mix of the developed markets'</b></div>`}
+      <div><span>Past year, with income</span><b class="${cls(o.f.r1y)}">${pct(o.f.r1y,1)}</b></div></div>
+    ${o.g?`<p class="note" style="margin:0">From ${esc(o.g.how)}, less the fee. A fund keeps rolling into new bonds, so this is a guide, not a fixed return.</p>`:""}</div>`;
+  const giltCard=g=>`<div class="card core"><div><div class="eyebrow">Matures ${esc(isoDate(g.mat))} · about ${Math.max(1,Math.round(g.yrs))} year${Math.round(g.yrs)>1?"s":""}</div><h3>${esc(g.name)}</h3></div>
+    <div class="buyline">Search IBKR for <span class="tick">${esc(g.isin)}</span></div>
+    <div class="core-stats"><div title="Coupons plus the £100 repaid at the end, as a yearly rate on today's price"><span>Yield if held to the end</span><b>${yld(g.ytm)}</b></div>
+      <div title="Outside an ISA or pension, coupons are taxed; the gain up to £100 isn't"><span>After 20% tax</span><b>${yld(g.at20)}</b></div>
+      <div><span>After 40% tax</span><b>${yld(g.at40)}</b></div><div><span>Price per £100</span><b>£${num(g.clean,2)}</b></div></div></div>`;
+  const tested = bt? `<p><b>Tested on the past</b> (${esc(dateStr(bt.from))} to ${esc(dateStr(bt.to))}, hedged into pounds, re-picked monthly): the top-scored fifth of markets beat the average market by ${pct(bt.topEx,1,false)} a year, with a reliability of t = ${isNum(bt.tTop)?bt.tTop.toFixed(1):"–"} (2 or more is convincing). See the Track record tab.</p>` : "";
+  return `<section id="longrun">${secHead({eyebrow:"For the long run",title:"What bonds pay if you hold them",
+      lead:"With bonds, the yield you buy at is the best guide to what you will earn. Hold a bond to the end and, unless the government defaults, you get its yield each year: known on the day you buy."})}
+    ${more("longrun-how",`<p><b>Held to the end:</b> a gilt pays its coupons and then £100. Bought at today's price, that works out to its yield each year, in pounds, fixed from the day you buy. A UK government default is generally seen as extremely unlikely.</p>
+      <p><b>Tax:</b> outside an ISA or pension, gilt coupons are taxed as income, but the gain up to £100 is free of capital gains tax, so low-coupon gilts keep more after tax. Inside an ISA or SIPP the yield to the end is what you keep.</p>
+      <p><b>The catches:</b> inflation eats into a fixed yield (index-linked gilts protect against it; see the UK gilts tab). And if you sell before the end, the price can be lower: when yields rise, prices fall.${bt&&isNum(bt.giltsAnn)?` Gilts returned ${pct(bt.giltsAnn,1)} a year over the test period as yields rose.`:""}</p>
+      <p><b>Other governments:</b> a fund hedged into pounds removes most of the currency risk, so its long-run return in pounds is roughly the "hedged into £" yield shown, less its fee. Funds keep rolling into new bonds rather than holding to the end, so their return isn't locked in, but the starting yield has been the best single guide to it over the following years. Unhedged funds also rise and fall with the currency, so their return in pounds is less predictable.</p>
+      ${tested}<p>Not advice: how much to hold, and for how long, depends on your own situation.</p>`,"Why the yield matters most, and the catches")}
+    <div class="eyebrow" style="margin:4px 0 8px">UK gilts: a return in pounds, fixed today</div>
+    <div class="cores">${picks.map(giltCard).join("")||'<p class="muted">Gilt prices are not available right now.</p>'}</div>
+    <div class="eyebrow" style="margin:18px 0 8px">Spread across many bonds: funds you can buy on IBKR</div>
+    <div class="cores">${options.map(fundCard).join("")}</div>
+  </section>`;
+}
+function ibkrBox(r){
+  const fs=fundsFor(r), single=fs.filter(f=>SINGLE[f.group]===r.code), b=B(r);
+  const g10=r.code==="GB"&&conventionalGilts(S.data).sort((a,c)=>Math.abs(a.yrs-10)-Math.abs(c.yrs-10))[0];
+  const list=fl=>fl.map(f=>`<span class="tick">${esc(fundTick(f))}</span>${f.hedged?" (hedged into £)":""}`).join(", ");
+  return `<div class="card buybox"><div class="eyebrow">Buying on IBKR</div>
+    ${fs.length?`<p>${single.length?`Funds holding only ${esc(poss(r.name))} government bonds: ${list(single)}.`
+      :`No fund in our list holds only ${esc(poss(r.name))} bonds. These wider funds include them: ${list(fs.slice(0,3))} (${esc(fs[0].group)}).`} All are on IBKR under the same London tickers.</p>`:""}
+    <p class="muted">${r.code==="GB"?`Or buy a gilt itself: choose one in the <a href="#gilts">UK gilts</a> tab and search IBKR for its ISIN${g10?` (the gilt maturing nearest to 10 years from now is ${esc(g10.name)}, <span class="tick">${esc(g10.isin)}</span>)`:""}.`
+      :`IBKR also sells many governments' bonds directly: search its bond search for ${esc(r.name)} government bonds maturing around ${esc((b.mat||"").slice(0,4)||"the date you want")}. What is on offer varies by country, and smaller holdings can cost more to trade.`}</p></div>`;
+}
 function overviewHTML(d){
   const g=c=>byCode(c), b=c=>g(c)&&B(g(c));
   const us=g("US"), de=g("DE"), fr=g("FR"), it=g("IT"), gb=g("GB"), jp=g("JP");
@@ -256,6 +313,7 @@ function overviewHTML(d){
     Yield changes are in basis points (bp, 0.01%); <span class="neg">red</span> means yields rose, which means prices fell.</div></div>
   <section>${secHead({eyebrow:"Markets now",title:"The bond market at a glance",lead:"The yields most of the world prices from, the spreads that signal stress, and how jumpy the market is. Sparklines show the past year."})}
     <div class="macro">${tiles.join("")}</div></section>
+  ${longRunBonds(d)}
   <section>${secHead({eyebrow:"Backdrop",title:"What's driving bonds",lead:"Fixed rules applied to today's numbers. Coloured rules are active now; grey ones are within normal ranges."})}
     <div class="rulegrid">${d.rules.map(x=>`<div class="card rule ${x.active?x.tone:"off"}"><div class="rule-head"><b>${esc(x.name)}</b>${x.active?tag(x.tone==="pos"?"Supportive":x.tone==="neg"?"Headwind":x.tone==="warn"?"Caution":"Notable",x.tone):tag("Normal")}</div><p>${esc(x.note)}</p></div>`).join("")}</div></section>
   ${d.calendar&&d.calendar.length?`<section>${secHead({eyebrow:"Calendar",title:"Coming up",lead:"Central-bank decisions and the data releases that move bond yields most, over the next few weeks."})}${calendarHTML(d.calendar,{limit:10,title:"Next events"})}</section>`:""}
@@ -626,6 +684,11 @@ function guideHTML(d){
       <li><b>Hedging isn't free or costly by default</b>: it earns or pays the gap between UK and foreign short-term rates. Hedging a low-rate currency (yen, Swiss franc) into pounds adds yield; hedging a high-rate one (Brazil, Turkey) takes most of it away.</li>
       <li><b>Gilts held directly</b> are free of UK capital gains tax, so low-coupon gilts bought below 100 can be tax-efficient for taxable accounts (the gain to 100 is tax-free; only the coupon is taxed). Check with HMRC guidance or an adviser for your own case.</li>
       <li><b>Foreign government bonds</b> are mostly bought through bond funds or ETFs; many offer share classes hedged to pounds ("GBP Hedged").</li></ul>`)}
+    ${fold("g-ibkr","Buying on IBKR <small>funds, gilts and other governments' bonds</small>",`<ul>
+      <li><b>Funds:</b> all ${(d.funds||[]).length} London-listed funds in Ways to buy are UCITS funds, so a UK investor can buy them on IBKR under the same tickers. Some hold one country's bonds (gilts, US Treasuries, Japanese bonds); the rest are wider baskets (the euro area, the whole world, emerging markets), so they include a market without matching it.</li>
+      <li><b>Gilts:</b> search IBKR for a gilt's ISIN (shown in the UK gilts tab). Held to the end, a gilt pays its yield to maturity; outside an ISA or pension the coupons are taxed but the gain to £100 isn't.</li>
+      <li><b>Other governments:</b> IBKR sells many governments' bonds directly through its bond search; what is on offer varies by country, and small trades in foreign bonds can be costly.</li>
+      <li>Checked in IBKR's contract search on 7 Oct 2026.</li></ul>`)}
     ${fold("g-data","Where the data comes from <small>and how fresh it is</small>",`<ul>
       <li><b>Yields, coupons, maturities, prices:</b> CNBC quotes (Tradeweb and dealer feeds), refreshed every ~15 minutes on the published site. Some emerging markets quote only a few times a day; markets with no trade in 5 days are marked <i>stale</i>.</li>
       <li><b>Norway, Poland, Singapore, Malaysia, the Philippines and Peru:</b> official daily sources instead (Norges Bank; the BondSpot fixing for Polish Treasury bonds; the Monetary Authority of Singapore; Bank Negara Malaysia; the Asian Development Bank's AsianBondsOnline, sourced from Bloomberg; the Central Reserve Bank of Peru), checked once a day. For Poland the "2-year", "5-year" and "10-year" are the fixed-rate bonds closest to those maturities.</li>
@@ -768,6 +831,7 @@ function waysHTML(d){
     ${more("fundhelp",`<ul><li><b>Hedged to £</b> funds remove most of the currency risk, so they behave like the "hedged into £" yields in the tables. Unhedged funds also rise and fall with the currency.</li>
       <li><b>Fee</b> is the yearly ongoing charge. On a fund yielding 4%, a 0.07% fee is small; 0.50% is a noticeable share of the income.</li>
       <li><b>Individual gilts</b> can also be bought directly through most UK investment platforms; gains on gilts are free of capital gains tax.</li>
+      <li><b>On IBKR:</b> all of these funds are listed under the same ticker (London Stock Exchange), and individual gilts can be found by searching their ISIN (checked ${esc(isoDate("2026-10-07"))}).</li>
       <li>Prices are delayed and from Yahoo Finance. Fund list checked ${esc(isoDate("2026-10-05"))}.</li></ul>`,"Reading this table")}</section>`;
 }
 
@@ -993,6 +1057,7 @@ function openDetail(code){
         ["1y return in £",pct(tr1(r,"y1","gbp"),1),`local ${pct(tr1(r,"y1","local"),1)} · hedged ${pct(tr1(r,"y1","hedged"),1)}`]])}
       ${so.length?`<div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:8px">What stands out</div><ul class="why">${so.map(([t,x])=>`<li><span class="${t}">●</span> ${esc(x)}</li>`).join("")}</ul></div>`:""}
       <div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:10px">Score ingredients (rank among ${rows().length} markets, 0–100)</div>${partsHTML(r)}</div>
+      ${ibkrBox(r)}
       ${(()=>{ const fs=(S.data.funds||[]).filter(f=>(r.funds||[]).includes(f.group)); return fs.length?`<div><div class="eyebrow" style="margin:4px 0 8px">Ways to own ${esc(r.code==="GB"||r.code==="US"||r.code==="JP"||r.euro?bondName(r):"bonds like these")} from the UK</div>${fundsTable(fs,{groups:fs.some(f=>f.group!==fs[0].group)})}<p class="note">${r.euro?"Euro-area funds hold all the euro governments together, not just "+esc(r.name)+".":!r.dm&&r.code!=="US"?"Emerging-market funds hold many countries' bonds; "+esc(r.name)+" is only part of each.":["GB","US","JP"].includes(r.code)?"":"No London-listed fund holds only "+esc(r.name)+"'s bonds; global funds include them alongside other governments."} Not recommendations.</p></div>`:""; })()}
       ${r.m.path&&r.m.path.length>=2?`<div class="card chartbox"><div class="row"><span class="eyebrow">Score since the daily record began</span><span class="muted" style="font-size:12.5px">${isNum(r.m.d1w)?`${sgnN(r.m.d1w)} this week`:""}${isNum(r.m.d1m)?` · ${sgnN(r.m.d1m)} over 4 weeks`:""}</span></div><div id="dScore"></div></div>`:""}
     </div>
