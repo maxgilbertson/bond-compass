@@ -66,7 +66,7 @@ const TENORS = ["3M","6M","1Y","2Y","3Y","5Y","7Y","10Y","15Y","20Y","30Y"];
 const store = makeStore("bc.");
 const S = {data:null, region:store.get("region","all"), q:"", sort:store.get("sort",{k:"score",dir:-1}), cols:store.get("cols","key"),
   tenor:store.get("tenor","bench"), curveSel:store.get("curveSel",["US","GB","DE","JP"]), curveCmp:store.get("curveCmp",["m1","y1"]),
-  heat:store.get("heat","level"), mapM:store.get("mapM","score"), sx:store.get("sx","safety"), sy:store.get("sy","value"), sgrp:store.get("sgrp","all"),
+  heat:store.get("heat","level"), ctab:store.get("ctab","slopes"), mapM:store.get("mapM","score"), sx:store.get("sx","safety"), sy:store.get("sy","value"), sgrp:store.get("sgrp","all"),
   credit:store.get("credit","BAMLH0A0HYM2"), infl:store.get("infl","DFII10"), banks:store.get("banks",["US","XM","GB","JP"]),
   slopeSort:{k:"s2s10",dir:1}, bankSort:{k:"d1y",dir:-1}, sel:null, dtab:"summary"};
 const rows = () => S.data.rows;
@@ -125,7 +125,7 @@ const C = {
   ytd:{l:"YTD",s:"bp",g:(r,b)=>b&&b.ytd,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change since 1 January (bp)."},
   d1y:{l:"1y",s:"bp",g:(r,b)=>b&&b.d1y,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change over a year (bp)."},
   d3y:{l:"3y",s:"bp",g:(r,b)=>b&&b.d3y,f:v=>`<span class="num ${ycls(v)}">${bpf(v,true,false)}</span>`,t:"Yield change over 3 years (bp)."},
-  range:{l:"1-year range",g:(r,b)=>b&&b.hi1y!=null?(b.y-b.lo1y)/((b.hi1y-b.lo1y)||1):null,f:(v,r,b)=>b&&b.hi1y!=null?`<div style="min-width:120px" title="Low ${yld(b.lo1y)} · average ${yld(b.avg1y)} · high ${yld(b.hi1y)}">${rangeBar(b.y,b.lo1y,b.hi1y,b.avg1y)}<small class="num muted">${yld(b.lo1y)} – ${yld(b.hi1y)}</small></div>`:"–",t:"Where today's yield sits between its 1-year low and high (the grey tick is the 1-year average)."},
+  range:{l:"1-year range",g:(r,b)=>b&&b.hi1y!=null?(b.y-b.lo1y)/((b.hi1y-b.lo1y)||1):null,f:(v,r,b)=>b&&b.hi1y!=null?`<div style="min-width:120px" title="Low ${yld(b.lo1y)} · average ${yld(b.avg1y)} · high ${yld(b.hi1y)}">${rangeBar(b.y,b.lo1y,b.hi1y)}<small class="num muted">${yld(b.lo1y)} – ${yld(b.hi1y)}</small></div>`:"–",t:"Where today's yield (the dot) sits between its 1-year low and high."},
   z1y:{l:"Z-score",s:"1 year",g:(r,b)=>b&&b.z1y,f:v=>`<span class="num">${isNum(v)?v.toFixed(1):"–"}</span>`,t:"How many standard deviations today's yield is above (+) or below (−) its 1-year average. Beyond ±2 is unusually stretched."},
   pct3y:{l:"3y pctile",g:(r,b)=>b&&b.pct3y,f:v=>`<span class="num">${isNum(v)?v+"%":"–"}</span>`,t:"Share of the last 3 years' daily yields that were below today's. 100% = highest yield (cheapest) in 3 years."},
   coupon:{l:"Coupon",g:(r,b)=>b&&b.coupon,f:v=>`<span class="num">${isNum(v)?v.toFixed(3).replace(/0+$/,"").replace(/\.$/,"")+"%":"–"}</span>`,t:"The bond's fixed yearly interest payment, as a % of face value."},
@@ -227,6 +227,9 @@ const bestFund = r => { const fs=fundsFor(r); return fs.find(f=>f.hedged)||fs[0]
 const fundTick = f => f? f.yahoo.replace(/\.L$/,"") : "";
 // "the United States' bonds", "the Philippines' bonds", "Japan's bonds"
 const poss = n => { const t=/^(United |Philippines|Netherlands|Czech)/.test(n)? "the "+n : n; return /s$/.test(t)? t+"'" : t+"'s"; };
+// the DMO writes coupons three ways ("0 5/8%", "0½%", "1¼ %"); small fraction signs are hard to read, so show decimals ("0.625%")
+const FRAC = {"⅛":.125,"¼":.25,"⅜":.375,"½":.5,"⅝":.625,"¾":.75,"⅞":.875};
+const giltName = n => String(n||"").replace(/^(\d+)(?:\s*(\d)\/(\d)|\s*([⅛¼⅜½⅝¾⅞]))?\s*%/,(m,a,p,q,u)=>(+a+(p?p/q:u?FRAC[u]:0))+"%");
 const conventionalGilts = d => ((d.gilts||{}).gilts||[]).filter(g=>!g.linker&&isNum(g.ytm)&&isNum(g.yrs)&&g.yrs>0.5);
 function longRunBonds(d){
   const gl=conventionalGilts(d), near=T=>gl.slice().sort((a,b)=>Math.abs(a.yrs-T)-Math.abs(b.yrs-T))[0];
@@ -236,25 +239,25 @@ function longRunBonds(d){
   const guide=(code,tenor,hedged)=>{ const r=byCode(code), b=r&&(r.bonds.find(x=>x.tenor===tenor)||B(r)); const y=b&&(hedged?b.hedgedGbp:b.y);
     return isNum(y)? {y, how:`${poss(r.name)} ${b.tenor} yield${hedged?", hedged into £":""}`} : null; };
   const options=[
-    {f:F("VGOV"), what:"Gilts of every maturity, in pounds", g:guide("GB","10Y",false)},
-    {f:F("IGTM"), what:"US Treasuries maturing in 7 to 10 years, hedged into pounds", g:guide("US","10Y",true)},
-    {f:F("JGBH"), what:"Japanese government bonds, hedged into pounds", g:guide("JP","10Y",true)},
-    {f:F("VGGP"), what:"Governments across the developed world, hedged into pounds", g:null},
+    {f:F("VGOV"), what:"UK gilts, all maturities", g:guide("GB","10Y",false)},
+    {f:F("IGTM"), what:"US Treasuries, 7 to 10 years", g:guide("US","10Y",true)},
+    {f:F("JGBH"), what:"Japanese government bonds", g:guide("JP","10Y",true)},
+    {f:F("VGGP"), what:"Developed-world governments", g:null},
   ].filter(o=>o.f);
   const fundCard=o=>`<div class="card core"><div><div class="eyebrow">${esc(o.what)}</div><h3>${esc(o.f.name)}</h3></div>
     <div class="buyline">Buy as <span class="tick">${esc(fundTick(o.f))}</span>London · fee ${num(o.f.ter,2)}% a year ${o.f.hedged?tag("Hedged into £","info"):""}</div>
     <div class="core-stats">${o.g?`<div title="${esc(`Based on ${o.g.how}, less the fund's yearly fee`)}"><span>Best guide to its long-run return</span><b>${yld(o.g.y-o.f.ter)}</b></div>`
-        :`<div><span>Best guide to its long-run return</span><b style="font-size:14px;font-family:var(--body)">its yield: a mix of the developed markets'</b></div>`}
+        :`<div title="A blend of the developed markets' yields, hedged into £, less the fee: no single market's yield fits"><span>Best guide to its long-run return</span><b class="muted">mixed</b></div>`}
       <div><span>Past year, with income</span><b class="${cls(o.f.r1y)}">${pct(o.f.r1y,1)}</b></div></div>
-    ${o.g?`<p class="note" style="margin:0">From ${esc(o.g.how)}, less the fee. A fund keeps rolling into new bonds, so this is a guide, not a fixed return.</p>`:""}</div>`;
-  const giltCard=g=>`<div class="card core"><div><div class="eyebrow">Matures ${esc(isoDate(g.mat))} · about ${Math.max(1,Math.round(g.yrs))} year${Math.round(g.yrs)>1?"s":""}</div><h3>${esc(g.name)}</h3></div>
+  </div>`;
+  const giltCard=g=>`<div class="card core"><div><div class="eyebrow">Matures ${esc(isoDate(g.mat))} · about ${Math.max(1,Math.round(g.yrs))} year${Math.round(g.yrs)>1?"s":""}</div><h3>${esc(giltName(g.name))}</h3></div>
     <div class="buyline">Search IBKR for <span class="tick">${esc(g.isin)}</span></div>
     <div class="core-stats"><div title="Coupons plus the £100 repaid at the end, as a yearly rate on today's price"><span>Yield if held to the end</span><b>${yld(g.ytm)}</b></div>
       <div title="Outside an ISA or pension, coupons are taxed; the gain up to £100 isn't"><span>After 20% tax</span><b>${yld(g.at20)}</b></div>
       <div><span>After 40% tax</span><b>${yld(g.at40)}</b></div><div><span>Price per £100</span><b>£${num(g.clean,2)}</b></div></div></div>`;
   const tested = bt? `<p><b>Tested on the past</b> (${esc(dateStr(bt.from))} to ${esc(dateStr(bt.to))}, hedged into pounds, re-picked monthly): the top-scored fifth of markets beat the average market by ${pct(bt.topEx,1,false)} a year, with a reliability of t = ${isNum(bt.tTop)?bt.tTop.toFixed(1):"–"} (2 or more is convincing). See the Track record tab.</p>` : "";
   return `<section id="longrun">${secHead({eyebrow:"For the long run",title:"What bonds pay if you hold them",
-      lead:"With bonds, the yield you buy at is the best guide to what you will earn. Hold a bond to the end and, unless the government defaults, you get its yield each year: known on the day you buy."})}
+      lead:"The yield you buy at is the best guide to what a bond will earn you."})}
     ${more("longrun-how",`<p><b>Held to the end:</b> a gilt pays its coupons and then £100. Bought at today's price, that works out to its yield each year, in pounds, fixed from the day you buy. A UK government default is generally seen as extremely unlikely.</p>
       <p><b>Tax:</b> outside an ISA or pension, gilt coupons are taxed as income, but the gain up to £100 is free of capital gains tax, so low-coupon gilts keep more after tax. Inside an ISA or SIPP the yield to the end is what you keep.</p>
       <p><b>The catches:</b> inflation eats into a fixed yield (index-linked gilts protect against it; see the UK gilts tab). And if you sell before the end, the price can be lower: when yields rise, prices fall.${bt&&isNum(bt.giltsAnn)?` Gilts returned ${pct(bt.giltsAnn,1)} a year over the test period as yields rose.`:""}</p>
@@ -273,7 +276,7 @@ function ibkrBox(r){
   return `<div class="card buybox"><div class="eyebrow">Buying on IBKR</div>
     ${fs.length?`<p>${single.length?`Funds holding only ${esc(poss(r.name))} government bonds: ${list(single)}.`
       :`No fund in our list holds only ${esc(poss(r.name))} bonds. These wider funds include them: ${list(fs.slice(0,3))} (${esc(fs[0].group)}).`} All are on IBKR under the same London tickers.</p>`:""}
-    <p class="muted">${r.code==="GB"?`Or buy a gilt itself: choose one in the <a href="#gilts">UK gilts</a> tab and search IBKR for its ISIN${g10?` (the gilt maturing nearest to 10 years from now is ${esc(g10.name)}, <span class="tick">${esc(g10.isin)}</span>)`:""}.`
+    <p class="muted">${r.code==="GB"?`Or buy a gilt itself: choose one in the <a href="#gilts">UK gilts</a> tab and search IBKR for its ISIN${g10?` (the gilt maturing nearest to 10 years from now is ${esc(giltName(g10.name))}, <span class="tick">${esc(g10.isin)}</span>)`:""}.`
       :`IBKR also sells many governments' bonds directly: search its bond search for ${esc(r.name)} government bonds maturing around ${esc((b.mat||"").slice(0,4)||"the date you want")}. What is on offer varies by country, and smaller holdings can cost more to trade.`}</p></div>`;
 }
 function overviewHTML(d){
@@ -294,7 +297,7 @@ function overviewHTML(d){
     d.move&&`<div class="tile click" data-gox="credit" role="button" tabindex="0" onclick="Views.go('credit',true)"><div class="lab"><span>Bond volatility (MOVE)</span><small class="num">ICE BofA</small></div><div class="val">${d.move.last.toFixed(0)}</div>
       <div class="chg"><span class="${ycls(d.move.d1m)}">${sgnN(d.move.d1m)} 1m</span><span class="muted">1y ${d.move.lo1y.toFixed(0)}–${d.move.hi1y.toFixed(0)}</span></div>${sparkSVG(d.move.series.slice(-53).map(p=>p[1]),{w:160,h:30})}<div class="hint">Calm ≤ 80 · stressed ≥ 120</div></div>`,
     hy&&`<div class="tile click" role="button" tabindex="0" onclick="Views.go('credit',true)"><div class="lab"><span>US high-yield spread</span><small class="num">OAS</small></div><div class="val">${hy.last.toFixed(0)}<small>bp</small></div>
-      <div class="chg"><span class="${ycls(hy.d1m)}">${bpf(hy.d1m)} 1m</span><span class="muted">IG ${ig?ig.last.toFixed(0):"–"}bp</span></div>${sparkSVG(hy.series.slice(-53).map(p=>p[1]),{w:160,h:30})}<div class="hint">${hy.pct>=50?`Wider than ${hy.pct}%`:`Tighter than ${100-hy.pct}%`} of days in the last ${Math.round((Date.now()/1000-hy.since)/31557600)} years</div></div>`,
+      <div class="chg"><span class="${ycls(hy.d1m)}">${bpf(hy.d1m)} 1m</span><span class="muted">IG ${ig?ig.last.toFixed(0):"–"}bp</span></div>${sparkSVG(hy.series.slice(-53).map(p=>p[1]),{w:160,h:30})}<div class="hint">${usual(hy.pct,hy.since)}</div></div>`,
   ].filter(Boolean);
   const rs=rows();
   const top=rs.filter(r=>r.m.score!=null).sort((a,b)=>b.m.score-a.m.score).slice(0,5);
@@ -308,16 +311,15 @@ function overviewHTML(d){
   const movers=moved.length>16? [...moved.slice(0,8),...moved.slice(-8)] : moved;
   const sigs=rs.map(r=>r.m.signal).filter(Boolean);
   return `
-  <div class="intro">${icon("info",18)}<div>Live yields, curves and risk numbers for the benchmark government bonds of <b>${rs.length} countries</b>, alongside the public finances behind them.
-    Click any country for its full detail; the <a href="#monitor">Monitor</a> has every number in one sortable table, and the <a href="#guide">Guide</a> explains each term.
-    Yield changes are in basis points (bp, 0.01%); <span class="neg">red</span> means yields rose, which means prices fell.</div></div>
-  <section>${secHead({eyebrow:"Markets now",title:"The bond market at a glance",lead:"The yields most of the world prices from, the spreads that signal stress, and how jumpy the market is. Sparklines show the past year."})}
+  <div class="intro">${icon("info",18)}<div>Live government bond yields for <b>${rs.length} countries</b>. Click any country for detail; the <a href="#guide">Guide</a> explains each term.
+    1bp = 0.01%; <span class="neg">red</span> = yields up, prices down.</div></div>
+  <section>${secHead({eyebrow:"Markets now",title:"The bond market at a glance",lead:"Key yields, stress gauges and bond-market jumpiness. Lines show the past year."})}
     <div class="macro">${tiles.join("")}</div></section>
   ${longRunBonds(d)}
-  <section>${secHead({eyebrow:"Backdrop",title:"What's driving bonds",lead:"Fixed rules applied to today's numbers. Coloured rules are active now; grey ones are within normal ranges."})}
+  <section>${secHead({eyebrow:"Backdrop",title:"What's driving bonds",lead:"Six fixed checks on today's numbers. Coloured ones are firing now."})}
     <div class="rulegrid">${d.rules.map(x=>`<div class="card rule ${x.active?x.tone:"off"}"><div class="rule-head"><b>${esc(x.name)}</b>${x.active?tag(x.tone==="pos"?"Supportive":x.tone==="neg"?"Headwind":x.tone==="warn"?"Caution":"Notable",x.tone):tag("Normal")}</div><p>${esc(x.note)}</p></div>`).join("")}</div></section>
   ${d.calendar&&d.calendar.length?`<section>${secHead({eyebrow:"Calendar",title:"Coming up",lead:"Central-bank decisions and the data releases that move bond yields most, over the next few weeks."})}${calendarHTML(d.calendar,{limit:10,title:"Next events"})}</section>`:""}
-  <section>${secHead({eyebrow:"Shortlists",title:"Where the numbers point",lead:"Four ways to cut the list. Investment grade = rated BBB− or better on average. Click any market for the reasons behind it."})}
+  <section>${secHead({eyebrow:"Shortlists",title:"Where the numbers point",lead:"Four ways to cut the list. Click any market for the reasons."})}
     <div class="picks">
       <div class="card pickcol"><h3><span class="pc-ico accent">${icon("award",16)}</span>Highest scores</h3><p>Best mix of value and safety.</p>${top.map(r=>pick(r,Math.round(r.m.score),"score",sub(r))).join("")}</div>
       <div class="card pickcol"><h3><span class="pc-ico pos">${icon("coin",16)}</span>Best real yields</h3><p>Investment grade, after expected inflation.</p>${real.map(r=>pick(r,yld(B(r).realY),"real",sub(r))).join("")}</div>
@@ -327,21 +329,20 @@ function overviewHTML(d){
   <section class="two">
     <div class="card panel">${secHead({eyebrow:"Today",title:"Biggest benchmark yield moves",h:"h3",lead:`The ${movers.length<moved.length?"8 biggest rises and 8 biggest falls":"moves"} in each market's benchmark (mostly 10-year) yield since the previous close. All ${moved.length} are in the <a href="#monitor">Monitor</a>.`})}
       <div class="bars">${barsSVG(movers.map(r=>({label:r.name,sub:B(r).tenor,v:B(r).chg,key:r.code,color:B(r).chg>=0?"var(--dneg)":"var(--dpos)"})),{fmt:v=>bpf(v),labelW:150,rowH:24})}</div>
-      <p class="note">Blue = yield fell (price rose); red = yield rose (price fell). Some markets quote less often, so their change may be from an earlier session.</p></div>
+      <p class="note">Blue = yield fell (price rose); red = yield rose (price fell).</p></div>
     <div class="card panel">${secHead({eyebrow:"Signals",title:`How the ${sigs.length} markets score`,h:"h3",lead:"The score blends value (60%) and safety (40%). See the Guide for the recipe."})}
       ${sigDist(sigs)}
       <div style="margin-top:14px" class="scatter" id="ovScatter"></div>
-      <p class="note">Each dot is a market: further right = safer government finances and rating; higher = better value (real yield, cushion, cheapness). Top right is the sweet spot.</p></div>
+      <div class="legend-row"><span class="key dotk"><i style="background:var(--s1)"></i>Developed</span><span class="key dotk"><i style="background:var(--s2)"></i>Emerging</span><span class="muted" style="font-size:12.5px">Right = safer, higher = better value</span></div></div>
   </section>`;
 }
-function vsQuad(X,Y,{L,R,T,B,W,H}){ const cx=X(50), cy=Y(50);
+function vsQuad(X,Y,{L,R,T,B,W,H}){ const cx=X(50), cy=Y(50), two=W<560;  // narrow charts put each label on two lines
+  const lab=(x,y,a,t1,t2,up)=>`<text x="${x}" y="${y}" text-anchor="${a}" font-size="11.5" font-weight="600" fill="var(--muted)" letter-spacing=".04em">${two?`<tspan x="${x}" dy="${up?-13:0}">${t1}</tspan><tspan x="${x}" dy="13">${t2}</tspan>`:`${t1}, ${t2}`}</text>`;
   return `<rect x="${cx}" y="${T}" width="${W-R-cx}" height="${cy-T}" fill="var(--pos)" fill-opacity=".07"/>
     <rect x="${L}" y="${cy}" width="${cx-L}" height="${H-B-cy}" fill="var(--neg)" fill-opacity=".07"/>
     <line x1="${L}" x2="${W-R}" y1="${cy}" y2="${cy}" stroke="var(--line)"/><line x1="${cx}" x2="${cx}" y1="${T}" y2="${H-B}" stroke="var(--line)"/>
-    <text x="${W-R-6}" y="${T+14}" text-anchor="end" font-size="11.5" font-weight="600" fill="var(--pos)">GOOD VALUE, SAFER</text>
-    <text x="${L+6}" y="${T+14}" font-size="11.5" font-weight="600" fill="var(--warn)">GOOD VALUE, RISKIER</text>
-    <text x="${W-R-6}" y="${H-B-8}" text-anchor="end" font-size="11.5" font-weight="600" fill="var(--info)">SAFER, POOR VALUE</text>
-    <text x="${L+6}" y="${H-B-8}" font-size="11.5" font-weight="600" fill="var(--neg)">POOR VALUE, RISKIER</text>`; }
+    ${lab(W-R-6,T+14,"end","GOOD VALUE","SAFER")}${lab(L+6,T+14,"start","GOOD VALUE","RISKIER")}
+    ${lab(W-R-6,H-B-8,"end","SAFER","POOR VALUE",true)}${lab(L+6,H-B-8,"start","POOR VALUE","RISKIER",true)}`; }
 
 /* ---------- monitor */
 function monitorHTML(){
@@ -358,9 +359,10 @@ function monitorHTML(){
   </section>`;
 }
 function monitorTable(){
-  const cols=COLSETS[S.cols].cols, q=S.q.trim().toLowerCase();
+  const q=S.q.trim().toLowerCase(), bOf=r=>bondAt(r,S.tenor);
   const list=rows().filter(regionOK).filter(r=>!q||r.name.toLowerCase().includes(q)||r.code.toLowerCase()===q);
-  const bOf=r=>bondAt(r,S.tenor);
+  // a column with nothing in it yet (e.g. the weekly score change before a week of records) is left out
+  const cols=COLSETS[S.cols].cols.filter(k=>k==="spark"||!C[k]||rows().some(r=>C[k].g(r,bOf(r))!=null));
   const sk=S.sort.k, getter=sk==="name"?(r=>r.name):(C[sk]?(r=>C[sk].g(r,bOf(r))):(r=>r.m.score));
   list.sort((a,b)=>{ const x=getter(a), y=getter(b); if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1;
     return (typeof x==="string"? x.localeCompare(y) : x-y)*S.sort.dir; });
@@ -376,25 +378,27 @@ function monitorTable(){
 function curvesHTML(){
   const opts=rows().slice().sort((a,b)=>a.name.localeCompare(b.name));
   const one=S.curveSel.length===1;
-  return `<section>${secHead({eyebrow:"Curves",title:"Yield curve explorer",lead:"Each line joins a government's yields from short to long maturities. Add up to five countries to compare them; pick a single country to see how its curve has shifted over time."})}
+  return `<section>${secHead({eyebrow:"Curves",title:"Yield curve explorer",lead:"Yields from short to long maturities. Add up to five countries, or pick one to see how its curve has moved."})}
     <div class="card chartbox"><div class="row">
       <div class="controls" id="curveChips">${S.curveSel.map((c,i)=>{ const r=byCode(c); return r?`<span class="tag" style="border-color:var(--s${i+1})"><i class="sw" style="background:var(--s${one?1:i+1});margin:0"></i>${esc(r.name)} <button type="button" class="btn" data-rm="${c}" style="padding:0 6px;font-size:12px;border:0" aria-label="Remove ${esc(r.name)}">×</button></span>`:""; }).join("")}
         ${S.curveSel.length<5?`<select id="curveAdd" aria-label="Add a country"><option value="">+ Add a country…</option>${opts.filter(r=>!S.curveSel.includes(r.code)).map(r=>`<option value="${r.code}">${esc(r.name)}</option>`).join("")}</select>`:""}</div>
       ${one?`<span style="margin-left:auto" class="controls"><span class="seg-lab">Compare with</span><div class="seg" id="cmpSeg">${[["w1","1 week ago"],["m1","1 month ago"],["m3","3 months ago"],["y1","1 year ago"],["fit","Fitted curve"]].map(([k,l])=>`<button type="button" data-v="${k}" aria-pressed="${S.curveCmp.includes(k)}">${l}</button>`).join("")}</div></span>`:""}
     </div>
     <div id="curveChart"></div><div class="legend-row" id="curveLegend"></div>
-    <p class="note">Maturities are spaced on a square-root scale so the short end is readable. Dots are the quoted bonds; lines in between are straight-line estimates.${one?" Past curves use the maturities that have a daily history.":""}</p></div></section>
+    <p class="note">Short maturities are spread out so they're readable. Dots are quoted bonds.</p></div></section>
   ${pairHTML()}
-  <section>${secHead({eyebrow:"Shape",title:"Curve slopes",lead:"How much extra yield longer bonds pay. Click a column to sort."})}
+  <section>${secHead({eyebrow:"Tables",title:"Every curve in numbers",lead:"One table at a time. Click a country for its detail.",
+      right:`<div class="controls">${seg("ctabSeg",[["slopes","Slopes"],["fwd","Future rates"],["grid","Every yield"]],S.ctab)}</div>`})}
+    <div data-ctab="slopes"${S.ctab==="slopes"?"":" hidden"}><p class="note" style="margin:0 0 8px">How much extra yield longer bonds pay, in bp. Click a column to sort.</p>
     <div class="tablebox" id="slopeTable">${slopeTable()}</div>
     ${more("slopehelp",`<ul><li><b>3m10y, 2s10s, 5s30s, 10s30s:</b> the long yield minus the short one, in bp. Positive = normal, upward-sloping; negative = inverted.</li>
       <li><b>Butterfly (2s5s10s):</b> twice the 5-year minus the 2- and 10-year. Positive = the middle of the curve is high (a hump), negative = it sags.</li>
       <li><b>Steepening</b> (the 2s10s rising) usually comes from long yields rising on inflation or borrowing worries, or short yields falling as rate cuts approach. <b>Flattening</b> is the reverse.</li>
-      <li><b>Market expects:</b> the 2-year yield compared with today's cash rate: what the market thinks the central bank will do over the next couple of years.</li></ul>`,"What the slopes mean")}</section>
-  <section>${secHead({eyebrow:"Matrix",title:"Every yield on one grid",lead:"Rows are countries, columns are maturities. Switch between yield levels and recent changes.",
-      right:`<div class="controls">${seg("heatSeg",[["level","Yield"],["chg","Today"],["d1m","1 month"],["d1y","1 year"],["z","vs 1-year avg"]],S.heat,"Show")}</div>`})}
+      <li><b>Market expects:</b> the 2-year yield compared with today's cash rate: what the market thinks the central bank will do over the next couple of years.</li></ul>`,"What the slopes mean")}</div>
+    <div data-ctab="fwd"${S.ctab==="fwd"?"":" hidden"}>${fwdTable()}</div>
+    <div data-ctab="grid"${S.ctab==="grid"?"":" hidden"}><div class="controls" style="margin-bottom:8px">${seg("heatSeg",[["level","Yield"],["chg","Today"],["d1m","1 month"],["d1y","1 year"],["z","vs 1-year avg"]],S.heat,"Show")}</div>
     <div class="tablebox" id="heatTable">${heatTable()}</div>
-    <p class="note" id="heatNote">${heatNote()}</p></section>`;
+    <p class="note" id="heatNote">${heatNote()}</p></div></section>`;
 }
 function slopeTable(){
   const cols=[["shape","Shape",r=>r.shape,v=>esc(v||"–")],["s3m10","3m10y",r=>r.slopes.s3m10],["s2s10","2s10s",r=>r.slopes.s2s10],
@@ -402,7 +406,7 @@ function slopeTable(){
     ["y2s10","2s10s 1y ago",r=>r.slopes.s2s10_1y],["s5s30","5s30s",r=>r.slopes.s5s30],["s10s30","10s30s",r=>r.slopes.s10s30],["fly","Butterfly",r=>r.slopes.fly],
     ["cash","Cash rate",r=>r.cash&&r.cash.rate,v=>yld(v)],["expects","Market expects",r=>r.expects,v=>expectsText(v,true)]];
   const fmt=v=>`<span class="num ${isNum(v)&&v<0?"neg":""}">${bpf(v,true,false)}</span>`;
-  const list=rows().slice(), k=S.slopeSort.k, c=cols.find(x=>x[0]===k);
+  const list=rows().filter(r=>["s3m10","s2s10","s5s30","s10s30","fly"].some(k=>isNum(r.slopes[k]))), k=S.slopeSort.k, c=cols.find(x=>x[0]===k);
   list.sort((a,b)=>{ const x=c?c[2](a):a.name, y=c?c[2](b):b.name; if(x==null) return 1; if(y==null) return -1; return (typeof x==="string"?x.localeCompare(y):x-y)*S.slopeSort.dir; });
   return `<table><thead><tr><th class="l sticky" data-ssort="name">Country</th>${cols.map(([k,l])=>`<th data-ssort="${k}" ${S.slopeSort.k===k?`data-dir="${S.slopeSort.dir>0?"▲":"▼"}"`:""}>${l}${k==="shape"||k==="cash"||k==="expects"?"":"<small>bp</small>"}</th>`).join("")}</tr></thead>
     <tbody>${list.map(r=>`<tr data-open="${r.code}"><td class="l sticky"><b>${esc(r.name)}</b></td>${cols.map(([k,,g,f])=>`<td>${(f||fmt)(g(r))}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -553,27 +557,36 @@ function drawScatter(){
 /* ---------- credit & inflation */
 function creditTile(c,{hint=""}={}){ if(!c) return "";
   const unit=c.kind==="spread"?"bp":"%", v=c.kind==="spread"?c.last.toFixed(0):c.last.toFixed(2);
-  return `<div class="tile"><div class="lab"><span>${esc(c.label)}</span><small class="num">${c.kind==="spread"?"OAS":""}</small></div><div class="val">${v}<small>${unit}</small></div>
+  return `<div class="tile"><div class="lab"><span>${esc(c.label)}</span></div><div class="val">${v}<small>${unit}</small></div>
     <div class="chg"><span class="${ycls(c.d1w)}">${bpf(c.d1w)} 1w</span><span class="${ycls(c.d1m)}">${bpf(c.d1m)} 1m</span><span class="${ycls(c.d1y)}">${bpf(c.d1y)} 1y</span></div>
-    ${rangeBar(c.last,c.lo,c.hi,c.avg)}<div class="hint">${c.kind==="spread"?(c.pct<=20?"Tight: ":c.pct>=80?"Wide: ":"")+`higher than ${c.pct}% of days`:`higher than ${c.pct}% of days`} since ${new Date(c.since*1000).getUTCFullYear()} · range ${c.kind==="spread"?c.lo.toFixed(0)+"–"+c.hi.toFixed(0)+"bp":c.lo.toFixed(2)+"–"+c.hi.toFixed(2)+"%"}${hint?" · "+hint:""}</div></div>`; }
+    ${rangeBar(c.last,c.lo,c.hi,{band:usualBand(c.series),ends:c.kind==="spread"?[c.lo.toFixed(0),c.hi.toFixed(0)]:[c.lo.toFixed(2),c.hi.toFixed(2)]})}<div class="hint">${usual(c.pct,c.since)}${hint?" · "+hint:""}</div></div>`; }
+const bpN = v => Math.round(v).toLocaleString("en-GB");
+function ladderHTML(ladder){
+  const ig=c=>["AAA","AA","A","BBB"].includes(c.label);
+  const row=c=>`<div class="lrow" title="${esc(`${c.label}: ${bpN(c.last)}bp today; over the last 3 years low ${bpN(c.lo)}, average ${bpN(c.avg)}, high ${bpN(c.hi)}bp`)}">
+    <span class="lname">${esc(c.label)}</span><span class="lval">${bpN(c.last)}<small>bp</small></span>
+    ${rangeBar(c.last,c.lo,c.hi,{band:usualBand(c.series),ends:[bpN(c.lo),bpN(c.hi)]})}<span class="lread${c.pct>=95||c.pct<=5?" hi":""}">${usual(c.pct)}</span></div>`;
+  const grp=(t,s,list)=>list.length?`<div class="lgrp">${t}<small>${s}</small></div>${list.map(row).join("")}`:"";
+  return `<div class="ladder"><div class="lhead"><span>Rating</span><span>Today</span><span>3-year range, low to high<i></i>usual</span><span>Compared with usual</span></div>
+    ${grp("Investment grade","safer companies",ladder.filter(ig))}${grp("High yield","riskier companies",ladder.filter(c=>!ig(c)))}</div>`;
+}
 function creditHTML(d){
   const cr=id=>d.credit.find(c=>c.id===id);
-  const ladder=d.credit.filter(c=>c.group==="ladder"), mx=Math.max(...ladder.map(c=>c.last));
+  const ladder=d.credit.filter(c=>c.group==="ladder");
   const ust=byCode("US"), u10=ust&&B(ust);
   const spreadOpts=d.credit.filter(c=>c.kind==="spread"), inflOpts=d.credit.filter(c=>c.group==="real"||c.group==="infl"), ukOpts=d.credit.filter(c=>c.group==="ukreal"||c.group==="ukinfl");
-  return `<section>${secHead({eyebrow:"Corporate credit",title:"What companies pay over governments",lead:"Option-adjusted spreads (OAS) of ICE BofA corporate bond indices: the extra yield over government bonds that investors demand for default risk. FRED keeps the last 3 years of these."})}
+  return `<section>${secHead({eyebrow:"Corporate credit",title:"What companies pay over governments",lead:"The extra yield investors demand to lend to companies rather than governments, for the risk of default."})}
     <div class="macro">${[cr("BAMLC0A0CM"),cr("BAMLC0A4CBBB"),cr("BAMLH0A0HYM2"),cr("BAMLHE00EHYIOAS"),cr("BAMLEMHBHYCRPIOAS")].map(c=>creditTile(c)).join("")}</div></section>
   <section class="two">
-    <div class="card panel">${secHead({eyebrow:"Ratings ladder",title:"Spread by credit rating",h:"h3",lead:"US corporate bonds: each step down the rating scale, and how today compares with the last 3 years."})}
-      <div class="ladder">${ladder.map(c=>`<div class="lrow" title="${esc(`${c.label}: ${c.last.toFixed(0)}bp; 3-year range ${c.lo.toFixed(0)}–${c.hi.toFixed(0)}bp, average ${c.avg.toFixed(0)}bp`)}"><span>${esc(c.label)}</span><div class="lbar" style="width:${Math.max(2,Math.sqrt(c.last/mx)*100)}%;background:${c.label.startsWith("B")&&c.label!=="BBB"||c.label.startsWith("C")?"var(--s2)":"var(--s1)"}"></div><span class="lv">${c.last.toFixed(0)}bp</span><span class="lp">wider than ${c.pct}%</span></div>`).join("")}</div>
-      <p class="note">Bar length on a square-root scale so the high-yield end fits. Blue = investment grade, orange = high yield. "Wider than" = share of days in the last 3 years with a smaller spread.</p></div>
+    <div class="card panel">${secHead({eyebrow:"Ratings ladder",title:"Spread by credit rating",h:"h3",lead:"US corporate bonds: the extra yield over Treasuries at each rating. The dot is today."})}
+      ${ladderHTML(ladder)}</div>
     <div class="card panel">${secHead({eyebrow:"All-in yields",title:"Corporate yields vs Treasuries",h:"h3",lead:"Effective yield of each index (what a buyer earns today), next to the US 10-year Treasury."})}
-      <div class="macro c2">${[["10Y","US 10-year Treasury"],["30Y","US 30-year Treasury"]].map(([t,l])=>{ const b=ust&&ust.bonds.find(x=>x.tenor===t); return b?`<div class="tile click" data-open="US" role="button" tabindex="0"><div class="lab"><span>${l}</span><small class="num">UST</small></div><div class="val">${b.y.toFixed(2)}<small>%</small></div><div class="chg"><span class="${ycls(b.chg)}">${bpf(b.chg)} 1d</span><span class="${ycls(b.d1m)}">${bpf(b.d1m)} 1m</span><span class="${ycls(b.d1y)}">${bpf(b.d1y)} 1y</span></div>${rangeBar(b.y,b.lo1y,b.hi1y,b.avg1y)}<div class="hint">1-year range ${yld(b.lo1y)}–${yld(b.hi1y)}</div></div>`:""; }).join("")}
+      <div class="macro c2">${[["10Y","US 10-year Treasury"],["30Y","US 30-year Treasury"]].map(([t,l])=>{ const b=ust&&ust.bonds.find(x=>x.tenor===t); return b?`<div class="tile click" data-open="US" role="button" tabindex="0"><div class="lab"><span>${l}</span><small class="num">UST</small></div><div class="val">${b.y.toFixed(2)}<small>%</small></div><div class="chg"><span class="${ycls(b.chg)}">${bpf(b.chg)} 1d</span><span class="${ycls(b.d1m)}">${bpf(b.d1m)} 1m</span><span class="${ycls(b.d1y)}">${bpf(b.d1y)} 1y</span></div>${rangeBar(b.y,b.lo1y,b.hi1y,{ends:[b.lo1y.toFixed(2),b.hi1y.toFixed(2)]})}<div class="hint">Range over the last year</div></div>`:""; }).join("")}
         ${d.credit.filter(c=>c.group==="yield").map(c=>creditTile(c)).join("")}</div></div>
   </section>
   <section><div class="card chartbox"><div class="row"><span class="eyebrow">Spread history</span><select id="creditSel" aria-label="Spread to chart">${spreadOpts.map(c=>`<option value="${c.id}" ${S.credit===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}</select>
       <span class="muted" style="font-size:12.5px" id="creditTxt"></span></div><div id="creditChart"></div></div></section>
-  <section>${secHead({eyebrow:"Inflation",title:"Real yields and inflation expectations",lead:"US inflation-protected Treasuries (TIPS) pay a 'real' yield on top of inflation. The gap between ordinary and inflation-protected yields (the breakeven) is the inflation rate the market expects."})}
+  <section>${secHead({eyebrow:"Inflation",title:"Real yields and inflation expectations",lead:"What US bonds pay above inflation, and the inflation rate markets expect."})}
     <div class="macro c3">${inflOpts.map(c=>creditTile(c)).join("")}</div>
     <div class="card chartbox" style="margin-top:14px"><div class="row"><span class="eyebrow">History</span><select id="inflSel" aria-label="Series to chart">${inflOpts.map(c=>`<option value="${c.id}" ${S.infl===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}${d.move?`<option value="MOVE" ${S.infl==="MOVE"?"selected":""}>MOVE index (bond volatility)</option>${ukOpts.map(c=>`<option value="${c.id}" ${S.infl===c.id?"selected":""}>${esc(c.label)}</option>`).join("")}`:""}</select></div><div id="inflChart"></div></div>
     ${more("inflhelp",`<ul><li><b>Real yield</b> (TIPS): the return above inflation if held to maturity. Positive and high real yields make bonds attractive in their own right; they also weigh on gold, growth shares and property.</li>
@@ -605,20 +618,26 @@ function banksHTML(){
   list.sort((a,b)=>{ const x=g[k](a), y=g[k](b); if(x==null) return 1; if(y==null) return -1; return (typeof x==="string"?x.localeCompare(y):x-y)*S.bankSort.dir; });
   const hikes=list.filter(x=>x.p.moves3m>0).length, cuts=list.filter(x=>x.p.moves3m<0).length;
   const th=(key,l,s="",t="")=>`<th data-bsort="${key}" title="${esc(t)}" ${S.bankSort.k===key?`data-dir="${S.bankSort.dir>0?"▲":"▼"}"`:""} class="${key==="name"?"l sticky":""}">${l}${s?`<small>${s}</small>`:""}</th>`;
-  return `<section>${secHead({eyebrow:"Central banks",title:"Policy rates and what markets expect",lead:`Short-term bond yields follow central banks. In the past 3 months <b>${hikes}</b> of these ${list.length} central banks raised rates and <b>${cuts}</b> cut them.`})}
+  return `<section>${secHead({eyebrow:"Central banks",title:"Policy rates and what markets expect",lead:`In the past 3 months <b>${hikes}</b> of these ${list.length} central banks raised rates and <b>${cuts}</b> cut them.`})}
+    <div class="card chartbox" style="margin-bottom:14px"><div class="row"><span class="eyebrow">Policy rates, past 2 years</span>
+      <div class="controls" id="bankChips">${bankChips()}</div></div>
+    <div id="bankChart"></div><div class="legend-row" id="bankLegend"></div><p class="note">Pick up to five. Very high-rate countries (Turkey, Brazil) squash the others; leave them out to compare the rest.</p></div>
     <div class="tablebox"><table><thead><tr>${th("name","Central bank")}${th("rate","Rate","%","Policy rate today (BIS)")}${th("last","Last move","","Date and size of the last change")}${th("d1y","1y change","bp")}${th("m3","Last 3 months","bp")}
       ${th("real","Real rate","vs inflation","Policy rate minus the IMF's inflation forecast for next year: positive = restrictive")}${th("two","2-year","yield")}${th("expects","Market expects","2y − rate","2-year yield minus the policy rate")}${th("ten","10-year","yield")}</tr></thead>
     <tbody>${list.map(x=>{ const real=isNum(x.infl)?x.p.rate-x.infl:null, L=x.p.last;
-      return `<tr data-open="${x.code}"><td class="l sticky"><div class="nmcell"><div><b>${esc(x.name)}</b><small>${esc(x.area)}</small></div></div></td><td><b class="num">${yld(x.p.rate)}</b></td>
+      return `<tr data-open="${x.code}"><td class="l sticky"><div class="nmcell"><div><b>${esc(x.name)}</b>${x.area!==x.name?`<small>${esc(x.area)}</small>`:""}</div></div></td><td><b class="num">${yld(x.p.rate)}</b></td>
       <td><span class="num">${L?`${dateStr(L.t)} <span class="${L.to>L.from?"neg":"pos"}">${bpf((L.to-L.from)*100)}</span>`:"no change in 2 years"}</span></td>
       <td><span class="num ${ycls(x.p.d1y)}">${bpf(x.p.d1y,true,false)}</span></td><td><span class="num ${ycls(x.p.moves3m)}">${x.p.moves3m?bpf(x.p.moves3m,true,false):"–"}</span></td>
       <td><span class="num ${cls(real)}">${pp(real,1,true)}</span></td><td><span class="num">${x.two?yld(x.two.y):"–"}</span></td><td>${expectsText(x.expects,true)}</td><td><span class="num">${x.ten?yld(x.ten.y):"–"}</span></td></tr>`; }).join("")}</tbody></table></div>
     ${(S.data.calendar||[]).some(e=>e.type==="central bank")?`<div style="margin-top:14px">${calendarHTML(S.data.calendar.filter(e=>e.type==="central bank"),{limit:12,title:"Next decisions"})}</div>`:""}
-    <p class="note">Egypt and Nigeria have no policy-rate feed here; their cash rate uses the shortest Treasury-bill yield. Rates as published by the Bank for International Settlements (usually a few days behind).</p></section>
-  <section><div class="card chartbox"><div class="row"><span class="eyebrow">Policy rates, past 2 years</span>
-      <div class="controls" id="bankChips">${list.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(x=>`<button type="button" class="tab" data-bank="${x.bank}" aria-pressed="${S.banks.includes(x.bank)}">${esc(x.bank==="XM"?"ECB":x.area)}</button>`).join("")}</div></div>
-    <div id="bankChart"></div><div class="legend-row" id="bankLegend"></div><p class="note">Pick up to five. Very high-rate countries (Turkey, Brazil) squash the others; leave them out to compare the rest.</p></div></section>`;
+    <p class="note">Rates from the Bank for International Settlements (usually a few days behind). Egypt and Nigeria use their shortest Treasury-bill yield.</p></section>`;
 }
+// chips sorted by the name they show; a picked chip carries its line's colour
+const bankLabel = x => x.bank==="XM"?"ECB":x.area;
+function bankChips(){
+  const all=bankRows(), on=all.filter(x=>S.banks.includes(x.bank)).slice(0,5).map(x=>x.bank);
+  return all.slice().sort((a,b)=>bankLabel(a).localeCompare(bankLabel(b))).map(x=>{ const i=on.indexOf(x.bank);
+    return `<button type="button" class="tab" data-bank="${x.bank}" aria-pressed="${i>=0}">${i>=0?`<i class="sw" style="background:var(--s${i+1})"></i>`:""}${esc(bankLabel(x))}</button>`; }).join(""); }
 function align(seriesList){  // a shared date grid, carrying each series' last value forward over short gaps
   const ts=[...new Set(seriesList.flatMap(s=>s.map(p=>p[0])))].sort((a,b)=>a-b);
   return {t:ts, v:seriesList.map(s=>{ const m=new Map(s.map(p=>[p[0],p[1]])); let last=null, lastT=null;
@@ -714,10 +733,10 @@ function guideHTML(d){
 }
 
 /* ---------- UK gilts: every gilt, its yield and after-tax yield */
-S.giltTax=store.get("giltTax","40"); S.giltMat=store.get("giltMat","all"); S.giltSort=store.get("giltSort",{k:"after",dir:-1});
+S.giltTax=store.get("giltTax","40"); S.giltMat=store.get("giltMat","all"); S.giltAll=false; S.giltSort=store.get("giltSort",{k:"after",dir:-1});
 function giltsHTML(d){
   const g=d.gilts, uk=(d.credit||[]).filter(c=>c.group==="ukreal"||c.group==="ukinfl");
-  const ukSec = uk.length? `<section>${secHead({eyebrow:"Bank of England",title:"UK real yields and expected inflation",lead:"From the Bank of England's daily gilt curves: the yield on index-linked gilts above inflation (real yield), and the inflation rate that makes ordinary and index-linked gilts pay the same (implied inflation). Index-linked gilts follow RPI, which has run above CPI; the gap is due to close in 2030."})}
+  const ukSec = uk.length? `<section>${secHead({eyebrow:"Bank of England",title:"UK real yields and expected inflation",lead:"What index-linked gilts pay above inflation, and the inflation rate the market expects (RPI, which runs above CPI until 2030). From the Bank of England."})}
     <div class="macro c3">${uk.map(c=>creditTile(c)).join("")}</div></section>` : "";
   if(!g||!g.gilts||!g.gilts.length) return `<section>${secHead({eyebrow:"Gilt finder",title:"Every UK gilt",lead:"Prices for every gilt come from the UK Debt Management Office once a day, after it publishes them in the afternoon."})}
     <p class="muted">The first day's gilt prices haven't been collected yet. They appear here after the next daily run.</p></section>${ukSec}`;
@@ -729,26 +748,28 @@ function giltsHTML(d){
   const best=list.slice().sort((a,b)=>(b[key]??-9)-(a[key]??-9))[0];
   const th=(k,l,s="",tip="")=>`<th data-gsort="${k}" title="${esc(tip)}" ${S.giltSort.k===k?`data-dir="${S.giltSort.dir>0?"▲":"▼"}"`:""} class="${k==="name"?"l sticky":""}">${l}${s?`<small>${s}</small>`:""}</th>`;
   const linkers=g.gilts.filter(x=>x.linker);
-  return `<section>${secHead({eyebrow:"Gilt finder",title:"Every UK gilt, after tax",lead:`All ${g.gilts.length} gilts in issue, priced on ${esc(isoDate(g.date,true))} by the UK Debt Management Office. For a taxpayer, interest is taxed but the gain as a gilt is repaid at £100 is free of capital gains tax, so low-coupon gilts bought below £100 can pay far more after tax.`})}
+  return `<section>${secHead({eyebrow:"Gilt finder",title:"Every UK gilt, after tax",lead:`All ${g.gilts.length} gilts in issue, priced on ${esc(isoDate(g.date,true))}. Low-coupon gilts bought below £100 can pay far more after tax.`})}
     <div class="toolbar">${seg("giltTaxSeg",[["0","No tax (ISA/SIPP)"],["20","Basic rate 20%"],["40","Higher rate 40%"],["45","Additional 45%"]],S.giltTax,"Your income-tax rate")}
       ${seg("giltMatSeg",[["all","All"],["s","Under 7 years"],["m","7–15 years"],["l","15+ years"]],S.giltMat,"Maturity")}</div>
-    ${best&&t?`<div class="intro" style="margin-top:4px">${icon("coin",18)}<div>At a ${t}% tax rate, the highest after-tax yield in this range is <b>${esc(best.name)}</b>: <b>${yld(best[key])}</b> after tax, the same as <b>${yld(best[key]/(1-t/100))}</b> before tax on a savings account or a fully taxed bond. Its gross yield is ${yld(best.ytm)}.</div></div>`:""}
+    ${best&&t?`<div class="intro" style="margin-top:4px">${icon("coin",18)}<div>At a ${t}% tax rate, the highest after-tax yield in this range is <b>${esc(giltName(best.name))}</b>: <b>${yld(best[key])}</b> after tax, the same as <b>${yld(best[key]/(1-t/100))}</b> before tax on a savings account or a fully taxed bond. Its gross yield is ${yld(best.ytm)}.</div></div>`:""}
     <div class="tablebox tall" style="margin-top:10px"><table><thead><tr>${th("name","Gilt")}${th("mat","Matures")}${th("coupon","Coupon","% a year")}${th("clean","Price","per £100")}${th("ytm","Yield","before tax","Gross yield to maturity")}${th("after","After tax",t?`at ${t}%`:"no tax","Yield after income tax on the coupons; the gain to £100 is tax-free")}${th("gross","Taxable equivalent","","The yield a fully taxed investment (like a savings account) would need to pay the same after tax")}${th("rv","vs curve","bp","How far this gilt's yield sits above (+) or below (−) a smooth curve through the benchmark gilts")}${th("mod","Duration","","% price change for a 1% move in yield")}</tr></thead>
-    <tbody>${list.map(x=>`<tr style="cursor:default"><td class="l sticky"><b>${esc(x.name)}</b><small class="muted" style="display:block;font-family:var(--mono);font-size:11px">${esc(x.isin)}</small></td>
+    <tbody>${(S.giltAll?list:list.slice(0,10)).map(x=>`<tr style="cursor:default"><td class="l sticky"><b>${esc(giltName(x.name))}</b><small class="muted" style="display:block;font-family:var(--mono);font-size:11px">${esc(x.isin)}</small></td>
       <td><span class="num">${esc(isoDate(x.mat))}</span></td><td><span class="num">${num(x.coupon,3).replace(/0+$/,"").replace(/\.$/,"")}%</span></td><td><span class="num">£${num(x.clean,2)}</span></td>
       <td><span class="num">${yld(x.ytm)}</span></td><td><b class="num">${yld(x[key])}</b></td><td><span class="num">${yld(val(x,"gross"))}</span></td>
       <td><span class="num ${isNum(x.rv)&&Math.abs(x.rv)>=5?(x.rv>0?"pos":"neg"):""}">${bpf(x.rv,true,false)}</span></td><td><span class="num">${num(x.mod,1)}</span></td></tr>`).join("")}</tbody></table></div>
+    ${list.length>10?`<div style="margin-top:8px"><button type="button" class="btn" id="giltAll">${S.giltAll?"Show the top 10":`Show all ${list.length}`}</button> <span class="muted" style="font-size:12.5px">Sorted by ${S.giltSort.k==="after"?"after-tax yield":"the column you picked"}; click a column to re-sort.</span></div>`:""}
     ${more("gilthelp",`<ul><li><b>Why after tax differs:</b> a gilt's coupon is income (taxed at your rate outside an ISA or pension), but the rise from today's price to £100 at maturity is exempt from capital gains tax. Low-coupon gilts priced well below £100 get most of their return that way.</li>
       <li><b>Taxable equivalent</b> = after-tax yield ÷ (1 − tax rate): what a savings account or a fully taxed bond would need to pay to match it.</li>
       <li><b>Simplifications:</b> yields assume you hold to maturity and reinvest at the same yield; settlement is the price date; the accrued-income rules for holdings over £5,000 nominal are ignored. Prices are the DMO's reference prices for its purchase and sale service, close to but not the same as a broker's dealing price.</li>
       <li>Index-linked gilts (${linkers.length}) are listed by price only below; their yields depend on future RPI.</li></ul>`,"How this works")}
-    ${linkers.length?fold("linkers",`Index-linked gilts <small>${linkers.length}, prices only</small>`,`<div class="tablebox"><table><thead><tr><th class="l">Gilt</th><th>Matures</th><th>Price</th></tr></thead><tbody>${linkers.map(x=>`<tr style="cursor:default"><td class="l">${esc(x.name)}</td><td><span class="num">${esc(isoDate(x.mat))}</span></td><td><span class="num">£${num(x.clean,2)}</span></td></tr>`).join("")}</tbody></table></div>`):""}
+    ${linkers.length?fold("linkers",`Index-linked gilts <small>${linkers.length}, prices only</small>`,`<div class="tablebox"><table><thead><tr><th class="l">Gilt</th><th>Matures</th><th>Price</th></tr></thead><tbody>${linkers.map(x=>`<tr style="cursor:default"><td class="l">${esc(giltName(x.name))}</td><td><span class="num">${esc(isoDate(x.mat))}</span></td><td><span class="num">£${num(x.clean,2)}</span></td></tr>`).join("")}</tbody></table></div>`):""}
   </section>${ukSec}`;
 }
 function bindGilts(){
   const redraw=()=>{ const v=document.querySelector('#app [data-view="gilts"]'); v.innerHTML=giltsHTML(S.data); restoreOpen(v); bindGilts(); bindTips(v); };
   bindSeg("giltTaxSeg",v=>{ S.giltTax=v; store.set("giltTax",v); redraw(); });
   bindSeg("giltMatSeg",v=>{ S.giltMat=v; store.set("giltMat",v); redraw(); });
+  const all=$("#giltAll"); if(all) all.onclick=()=>{ S.giltAll=!S.giltAll; redraw(); };
   document.querySelectorAll("[data-gsort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.gsort; S.giltSort={k,dir:S.giltSort.k===k?-S.giltSort.dir:(k==="name"||k==="mat"?1:-1)}; store.set("giltSort",S.giltSort); redraw(); });
 }
 
@@ -842,13 +863,15 @@ function pairHTML(){
   return `<section>${secHead({eyebrow:"Spreads",title:"The gap between any two markets",lead:"How much more one government pays than another at the same maturity, over time. A widening gap usually means investors are worrying more about the first."})}
     <div class="card chartbox"><div class="row"><select id="pairA" aria-label="First market">${opts}</select><span class="muted">minus</span><select id="pairB" aria-label="Second market">${opts}</select>
       ${seg("pairT",[["2Y","2-year"],["5Y","5-year"],["10Y","10-year"],["30Y","30-year"]],S.pairT)}${seg("pairR",[["1","1y"],["3","3y"],["5","5y"],["0","Since 2016"]],S.pairR)}</div>
-      <div id="pairChart"><p class="muted">Loading…</p></div><p class="note" id="pairNote"></p></div></section>
-  <section>${secHead({eyebrow:"Forward rates",title:"What each curve implies for future rates",lead:"From a smooth curve fitted through each country's yields: the rate for borrowing in the future that today's yields lock in. 1y1y = a 1-year rate starting in a year's time; 5y5y = a 5-year rate starting in 5 years."})}
-    <div class="tablebox"><table><thead><tr><th class="l sticky">Country</th><th>Cash rate</th><th>2-year</th><th title="1-year rate, one year from now">1y1y</th><th title="1-year rate, two years from now">2y1y</th><th title="2-year rate, two years from now">2y2y</th><th>10-year</th><th title="5-year rate, five years from now">5y5y</th><th title="10-year rate, ten years from now">10y10y</th><th title="How closely the fitted curve matches the quoted yields (average miss)">Fit error</th></tr></thead>
+      <div id="pairChart"><p class="muted">Loading…</p></div><p class="note" id="pairNote"></p></div></section>`;
+}
+function fwdTable(){
+  return `<p class="note" style="margin:0 0 8px">The future borrowing rates today's yields lock in: 1y1y = a 1-year rate starting in a year; 5y5y = a 5-year rate starting in 5 years.</p>
+    <div class="tablebox"><table><thead><tr><th class="l sticky">Country</th><th>Cash rate</th><th>2-year</th><th title="1-year rate, one year from now">1y1y</th><th title="1-year rate, two years from now">2y1y</th><th title="2-year rate, two years from now">2y2y</th><th>10-year</th><th title="5-year rate, five years from now">5y5y</th><th title="10-year rate, ten years from now">10y10y</th></tr></thead>
     <tbody>${rows().filter(r=>r.fit).sort((a,b)=>a.name.localeCompare(b.name)).map(r=>{ const f=r.fit.fwd, two=r.bonds.find(b=>b.tenor==="2Y"), ten=r.bonds.find(b=>b.tenor==="10Y");
-      return `<tr data-open="${r.code}"><td class="l sticky"><b>${esc(r.name)}</b></td><td><span class="num">${yld(r.cash&&r.cash.rate)}</span></td><td><span class="num">${two?yld(two.y):"–"}</span></td>
-      ${["1y1y","2y1y","2y2y"].map(k=>`<td><span class="num">${yld(f[k])}</span></td>`).join("")}<td><span class="num">${ten?yld(ten.y):"–"}</span></td>${["5y5y","10y10y"].map(k=>`<td><span class="num">${yld(f[k])}</span></td>`).join("")}<td><span class="num muted">${r.fit.rmse}bp</span></td></tr>`; }).join("")}</tbody></table></div>
-    <p class="note">Forward rates treat the fitted yields as zero-coupon rates, a close approximation. They include a premium for the risk of lending for longer, so they're higher than pure rate expectations. Countries with fewer than five quoted maturities aren't fitted.</p></section>`;
+      return `<tr data-open="${r.code}" title="${esc(`The fitted curve misses ${r.name}'s quoted yields by ${r.fit.rmse}bp on average`)}"><td class="l sticky"><b>${esc(r.name)}</b></td><td><span class="num">${yld(r.cash&&r.cash.rate)}</span></td><td><span class="num">${two?yld(two.y):"–"}</span></td>
+      ${["1y1y","2y1y","2y2y"].map(k=>`<td><span class="num">${yld(f[k])}</span></td>`).join("")}<td><span class="num">${ten?yld(ten.y):"–"}</span></td>${["5y5y","10y10y"].map(k=>`<td><span class="num">${yld(f[k])}</span></td>`).join("")}</tr>`; }).join("")}</tbody></table></div>
+    ${more("fwdhelp",`<p>Forward rates come from a smooth curve fitted through each country's yields, treating them as zero-coupon rates (a close approximation). They include a premium for the risk of lending for longer, so they're higher than pure rate expectations. Countries with fewer than five quoted maturities aren't fitted.</p>`,"How these are worked out")}`;
 }
 async function drawPair(){
   const el=$("#pairChart"); if(!el) return; $("#pairA").value=S.pairA; $("#pairB").value=S.pairB;
@@ -933,17 +956,18 @@ function btKpis(bt){ return `<div class="kpis">
   <div class="kpi"><span>Top-scored 20%</span><b class="${cls(bt.topEx)}">${pct(bt.topEx,1)}</b><small>a year vs all markets equally weighted (${pct(bt.topAnn,1)} a year vs ${pct(bt.allAnn,1)})</small></div>
   <div class="kpi"><span>Lowest-scored 20%</span><b class="${cls(bt.botEx)}">${pct(bt.botEx,1)}</b><small>a year vs all markets (${pct(bt.botAnn,1)} a year)</small></div>
   <div class="kpi"><span>Months the top 20% won</span><b>${Math.round(bt.hitTop*100)}%</b><small>of ${bt.months} months; the bottom 20% lost in ${Math.round(bt.hitBot*100)}%</small></div>
-  <div class="kpi"><span>Confidence (top minus bottom)</span><b>${esc(cap(confWord(bt.tSpread)))}</b><small>t = ${isNum(bt.tSpread)?bt.tSpread.toFixed(1):"–"}; 2 or more = unlikely to be luck</small></div></div>`; }
+  <div class="kpi"><span>Confidence (top minus bottom)</span><b>${esc(cap(confWord(bt.tSpread)))}</b><small title="t = ${isNum(bt.tSpread)?bt.tSpread.toFixed(1):"–"} (2 or more = unlikely to be luck)">${isNum(bt.tSpread)&&Math.abs(bt.tSpread)>=2?"Unlikely to be luck":"Could be luck"}</small></div></div>`; }
 function recordHTML(d){
   const bt=d.backtest, dm=bt&&bt.dm, st=btStrength(bt), p=d.paper, ch=d.changes;
   const W=d.btWeights||{}, totW=Object.values(W).reduce((a,b)=>a+b,0);
   const btSec = !bt? `<p class="muted">The test on past data couldn't run (not enough history loaded). It will appear on the next refresh.</p>` : `
     <div class="card verdict-bt"><span class="badge ${st.cls}">${esc(st.label)}</span><div>
-      Every month from ${yr(bt.from)} to ${yr(bt.to)} (${bt.months} months, about ${Math.round(bt.avgMarkets)} markets a month), the markets were re-scored using only numbers known at the time,
+      From ${yr(bt.from)} to ${yr(bt.to)}, the <b>top-scored 20% of markets ${bt.topEx>=0?"beat":"trailed"} the average by ${pct(Math.abs(bt.topEx),1,false)} a year</b>, after costs and hedged into pounds.
+      <span class="muted">A test on the past is not a promise.</span>
+      ${more("btmethod",`<p>Every month from ${yr(bt.from)} to ${yr(bt.to)} (${bt.months} months, about ${Math.round(bt.avgMarkets)} markets a month), the markets were re-scored using only numbers known at the time,
       and the top- and lowest-scored 20% were followed for the next month, with the currency hedged back to pounds and an assumed ${(bt.cost*100).toFixed(2)}% cost for each trade.
-      The <b>top 20% ${bt.topEx>=0?"beat":"trailed"} the average market by ${pct(Math.abs(bt.topEx),1,false)} a year</b> and the lowest 20% ${bt.botEx<=0?"trailed":"beat"} it by ${pct(Math.abs(bt.botEx),1,false)} a year.
-      ${(bt.halves||[]).length===2?`It held in both halves of the period (top 20% ${pct(bt.halves[0].topEx,1)} then ${pct(bt.halves[1].topEx,1)} a year vs the average)`:""}${dm?`, and among developed markets alone (top 20% ${pct(dm.topEx,1)}, bottom 20% ${pct(dm.botEx,1)} a year vs their average)`:""}.
-      <span class="muted">A test on the past is not a promise: see the limits below.</span></div></div>
+      The lowest 20% ${bt.botEx<=0?"trailed":"beat"} the average by ${pct(Math.abs(bt.botEx),1,false)} a year.
+      ${(bt.halves||[]).length===2?`The result held in both halves of the period (top 20% ${pct(bt.halves[0].topEx,1)} then ${pct(bt.halves[1].topEx,1)} a year vs the average)`:""}${dm?`, and among developed markets alone (top 20% ${pct(dm.topEx,1)}, bottom 20% ${pct(dm.botEx,1)} a year vs their average)`:""}.</p>`,"How the test worked")}</div></div>
     ${btKpis(bt)}
     <div class="card chartbox"><div class="row"><span class="eyebrow">Growth of £1, hedged into pounds</span>
       <span class="key"><i style="background:var(--s1)"></i>Top-scored 20%</span><span class="key"><i style="background:var(--faint)"></i>All markets, equal amounts</span><span class="key"><i style="background:var(--s2)"></i>Lowest-scored 20%</span><span class="key"><i class="dash" style="color:var(--s3)"></i>UK 10-year gilts</span></div>
@@ -955,7 +979,7 @@ function recordHTML(d){
         <p class="note">Positive = markets ranking higher on it tended to do better next month. Ratings and the budget gap (25% of the live score) can't be rebuilt for past dates, so the test leaves them out and re-weights the rest.</p></div>
       <div class="card panel">${secHead({eyebrow:"Recent months",title:"What the test picked",h:"h3",lead:"The last few month-end picks and how they did over the following month."})}
         <table class="comp"><thead><tr><th>Month end</th><th>Top 20%</th><th>Next month</th><th>Bottom 20%</th><th>Next month</th></tr></thead><tbody>
-        ${bt.recent.slice().reverse().map(m=>`<tr><td class="num">${dateStr(m.t)}</td><td>${m.top.map(c=>`<span data-open="${c}" style="cursor:pointer">${c}</span>`).join(" ")}</td><td class="num ${cls(m.topRet-m.allRet)}">${pct(m.topRet,1)}</td><td>${m.bottom.map(c=>`<span data-open="${c}" style="cursor:pointer">${c}</span>`).join(" ")}</td><td class="num ${cls(m.botRet-m.allRet)}">${pct(m.botRet,1)}</td></tr>`).join("")}</tbody></table>
+        ${bt.recent.slice().reverse().map(m=>`<tr><td class="num">${dateStr(m.t)}</td><td>${m.top.map(c=>`<span data-open="${c}" style="cursor:pointer">${esc((byCode(c)||{}).name||c)}</span>`).join(", ")}</td><td class="num ${cls(m.topRet-m.allRet)}">${pct(m.topRet,1)}</td><td>${m.bottom.map(c=>`<span data-open="${c}" style="cursor:pointer">${esc((byCode(c)||{}).name||c)}</span>`).join(", ")}</td><td class="num ${cls(m.botRet-m.allRet)}">${pct(m.botRet,1)}</td></tr>`).join("")}</tbody></table>
         <p class="note">Average of all markets each month for comparison: ${bt.recent.slice().reverse().map(m=>pct(m.allRet,1)).join(", ")}.</p></div>
     </div>
     ${more("btlimits",`<ul>
@@ -976,7 +1000,7 @@ function recordHTML(d){
   const sigs = ch&&ch.changes.length? `<div class="chglist">${ch.changes.slice().reverse().slice(0,40).map(c=>{ const r=byCode(c.key); return `<div class="chcard" data-open="${c.key}"><span><b>${esc(r?r.name:c.key)}</b><br><small>${esc(isoDate(c.date))}${c.live?" (today, live)":""}</small></span><span>${sigPill(c.from)} → ${sigPill(c.to)}</span></div>`; }).join("")}</div>`
     : `<p class="muted">No signal has changed since the daily record began${ch&&ch.since?` on ${esc(isoDate(ch.since))}`:""}. Changes will be listed here as they happen.</p>`;
   return `<section id="track">${secHead({eyebrow:"Tested on the past",title:"Would the score have worked?",lead:"The fair test of any score: rebuild it month by month using only what was known at the time, and see what happened next."})}<div class="bt-grid" style="display:grid;gap:14px">${btSec}</div></section>
-  <section id="paper">${secHead({eyebrow:"Live test",title:"Practice portfolios",lead:"A record that can't be tuned after the event: each month's picks are saved before anyone knows how they'll do. Pretend £10,000 portfolios, currency hedged back to pounds."})}<div style="display:grid;gap:14px">${ppl}</div></section>
+  <section id="paper">${secHead({eyebrow:"Live test",title:"Practice portfolios",lead:"Pretend £10,000 portfolios, hedged into pounds. Each month's picks are saved before anyone knows how they'll do."})}<div style="display:grid;gap:14px">${ppl}</div></section>
   <section id="signals">${secHead({eyebrow:"Signal changes",title:"When signals changed",lead:"Every change of signal since the daily record began, newest first."})}${sigs}</section>`;
 }
 function drawRecord(){
@@ -984,7 +1008,7 @@ function drawRecord(){
   if(bt&&$("#btChart")){ const c=bt.curves;
     lineChart($("#btChart"),{t:c.t,series:[{v:c.top,color:"var(--s1)",name:"Top 20%",w:2.2},{v:c.all,color:"var(--faint)",name:"All markets",w:1.6},{v:c.bottom,color:"var(--s2)",name:"Bottom 20%",w:1.8},{v:c.gilts,color:"var(--s3)",name:"UK gilts",dash:"5 4",w:1.6}],h:280,fmt:v=>"£"+v.toFixed(2),baseline:1}); }
   if(p&&$("#paperChart")&&p.t.length>=3){ const L=p.lines;
-    lineChart($("#paperChart"),{t:p.t,series:[{v:L.top,color:"var(--s1)",name:"Top 20%",w:2.2},{v:L.all,color:"var(--faint)",name:"All markets",w:1.6},{v:L.bottom,color:"var(--s2)",name:"Bottom 20%",w:1.8},{v:L.gilts,color:"var(--s3)",name:"UK gilts",dash:"5 4"},{v:L.cash,color:"var(--s4)",name:"Cash",dash:"2 3"}],h:240,fmt:v=>"£"+Math.round(v).toLocaleString(),baseline:10000}); }
+    lineChart($("#paperChart"),{t:p.t,series:[{v:L.top,color:"var(--s1)",name:"Top 20%",w:2.2},{v:L.all,color:"var(--faint)",name:"All markets",w:1.6},{v:L.bottom,color:"var(--s2)",name:"Bottom 20%",w:1.8},{v:L.gilts,color:"var(--s3)",name:"UK gilts",dash:"5 4"},{v:L.cash,color:"var(--s4)",name:"Cash",dash:"2 3"}],h:240,fmt:v=>"£"+Math.round(v).toLocaleString(),baseline:10000,minSpan:800}); }
 }
 
 /* ---------------------------------------------------------------- detail panel */
@@ -1151,6 +1175,7 @@ function bindControls(){
   $("#curveAdd")&&($("#curveAdd").onchange=e=>{ if(e.target.value){ S.curveSel=[...S.curveSel,e.target.value].slice(0,5); store.set("curveSel",S.curveSel); redrawCurves(); } });
   document.querySelectorAll("#curveChips [data-rm]").forEach(b=>b.onclick=()=>{ S.curveSel=S.curveSel.filter(c=>c!==b.dataset.rm); if(!S.curveSel.length) S.curveSel=["US"]; store.set("curveSel",S.curveSel); redrawCurves(); });
   document.querySelectorAll("#cmpSeg button").forEach(b=>b.onclick=()=>{ const k=b.dataset.v; S.curveCmp=S.curveCmp.includes(k)?S.curveCmp.filter(x=>x!==k):[...S.curveCmp,k]; store.set("curveCmp",S.curveCmp); redrawCurves(); });
+  bindSeg("ctabSeg",v=>{ S.ctab=v; store.set("ctab",v); document.querySelectorAll("#ctabSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); document.querySelectorAll("#app [data-ctab]").forEach(p=>p.hidden=p.dataset.ctab!==v); });
   bindSeg("heatSeg",v=>{ S.heat=v; store.set("heat",v); document.querySelectorAll("#heatSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); $("#heatTable").innerHTML=heatTable(); $("#heatNote").textContent=heatNote(); bindTips($("#heatTable")); });
   document.querySelectorAll("#slopeTable [data-ssort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.ssort; S.slopeSort={k,dir:S.slopeSort.k===k?-S.slopeSort.dir:(k==="name"?1:-1)}; $("#slopeTable").innerHTML=slopeTable(); bindControls(); });
   // countries
@@ -1165,8 +1190,9 @@ function bindControls(){
   $("#inflSel")&&($("#inflSel").onchange=e=>{ S.infl=e.target.value; store.set("infl",S.infl); drawCredit(); });
   // banks
   document.querySelectorAll("[data-bsort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.bsort; S.bankSort={k,dir:S.bankSort.k===k?-S.bankSort.dir:(k==="name"?1:-1)}; redrawBanks(); });
-  document.querySelectorAll("[data-bank]").forEach(b=>b.onclick=()=>{ const k=b.dataset.bank; S.banks=S.banks.includes(k)?S.banks.filter(x=>x!==k):[...S.banks,k].slice(-5); store.set("banks",S.banks);
-    document.querySelectorAll("[data-bank]").forEach(x=>x.setAttribute("aria-pressed",S.banks.includes(x.dataset.bank))); drawBanks(); });
+  const chips=()=>document.querySelectorAll("[data-bank]").forEach(b=>b.onclick=()=>{ const k=b.dataset.bank; S.banks=S.banks.includes(k)?S.banks.filter(x=>x!==k):[...S.banks,k].slice(-5); store.set("banks",S.banks);
+    $("#bankChips").innerHTML=bankChips(); chips(); drawBanks(); });
+  chips();
 }
 function bindSort(){ document.querySelectorAll("#monTable th[data-sort]").forEach(th=>th.onclick=()=>{ const k=th.dataset.sort;
   S.sort={k,dir:S.sort.k===k?-S.sort.dir:(k==="name"?1:-1)}; store.set("sort",S.sort); $("#monTable").innerHTML=monitorTable(); bindTips($("#monTable")); bindSort(); }); }

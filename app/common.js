@@ -13,10 +13,11 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const isNum = v => v!=null && !isNaN(v);
 // fractions shown as percentages (returns)
-const pct = (v,dp=1,sign=true) => !isNum(v) ? "–" : (sign&&v>0?"+":"")+(v*100).toFixed(dp)+"%";
+// rounded first, so a tiny loss shows as "0.0%" rather than "-0.0%"
+const pct = (v,dp=1,sign=true) => { if(!isNum(v)) return "–"; const r=+(v*100).toFixed(dp)||0; return (sign&&r>0?"+":"")+r.toFixed(dp)+"%"; };
 // values already in % (yields, rates, ratios)
 const yld = (v,dp=2) => !isNum(v) ? "–" : v.toFixed(dp)+"%";
-const pp = (v,dp=1,sign=false) => !isNum(v) ? "–" : (sign&&v>0?"+":"")+v.toFixed(dp)+"%";
+const pp = (v,dp=1,sign=false) => { if(!isNum(v)) return "–"; const r=+v.toFixed(dp)||0; return (sign&&r>0?"+":"")+r.toFixed(dp)+"%"; };
 // basis points (0.01%)
 const bpf = (v,sign=true,unit=true) => !isNum(v) ? "–" : (sign&&Math.round(v)>0?"+":"")+Math.round(v)+(unit?"bp":"");
 const num = (v,dp=2) => !isNum(v) ? "–" : v.toLocaleString(undefined,{minimumFractionDigits:dp,maximumFractionDigits:dp});
@@ -65,10 +66,21 @@ function ring(score,{size=46,stroke=5,color}={}){
     <text x="${mid}" y="${mid}" text-anchor="middle" dominant-baseline="central" font-size="${Math.round(size*.36)}" fill="var(--ink)">${score==null?"–":Math.round(score)}</text></svg>`;
 }
 const meter = (f,col="var(--pos)") => `<div class="meter" style="background:color-mix(in oklab,${col} 16%,var(--surface2))"><i style="width:${Math.round(Math.max(0,Math.min(1,f||0))*100)}%;background:${col}"></i></div>`;
-// where today's value sits between a low and a high (with an optional average tick)
-function rangeBar(v,lo,hi,avg){ if(!isNum(v)||!isNum(lo)||!isNum(hi)||hi<=lo) return "";
+// where today's value sits between a low and a high: a track from low to high with a dot for today,
+// optionally a shaded "usual" zone (see usualBand) and the low and high written at either end
+function rangeBar(v,lo,hi,{ends,band}={}){ if(!isNum(v)||!isNum(lo)||!isNum(hi)||hi<=lo) return "";
   const p=x=>Math.max(0,Math.min(100,(x-lo)/(hi-lo)*100));
-  return `<div class="rangebar">${isNum(avg)?`<b style="left:${p(avg)}%" title="average"></b>`:""}<i style="left:calc(${p(v)}% - 1px)"></i></div>`; }
+  const bar=`<div class="rangebar">${band?`<em style="left:${p(band[0])}%;width:${p(band[1])-p(band[0])}%"></em>`:""}<i style="left:${p(v)}%"></i></div>`;
+  return ends?`<div class="rstrip"><span>${ends[0]}</span>${bar}<span>${ends[1]}</span></div>`:bar; }
+// the middle of a history (30th to 70th percentile): the zone usual() calls "about usual"
+function usualBand(series){ const v=(series||[]).map(p=>p[1]).filter(isNum).sort((a,b)=>a-b); if(v.length<10) return null;
+  return [v[Math.floor(v.length*.3)],v[Math.min(v.length-1,Math.floor(v.length*.7))]]; }
+// a percentile (share of days with a lower value) in plain English, e.g. "Higher than usual for the last 3 years"
+function usual(pct,since){ if(!isNum(pct)) return "";
+  const y=isNum(since)?Math.max(1,Math.round((Date.now()/1000-since)/31557600)):0;
+  if(pct>=95) return `Near its ${y?y+"-year ":""}high`;
+  if(pct<=5) return `Near its ${y?y+"-year ":""}low`;
+  return (pct>=70?"Higher than usual":pct>30?"About usual":"Lower than usual")+(y?` for the last ${y} years`:""); }
 const tag = (html,tone="",attrs="") => `<span class="tag ${tone}" ${attrs}>${html}</span>`;
 
 /* ---------------------------------------------------------------- icons, dropdowns, section tabs */
@@ -177,16 +189,21 @@ function hideTip(){ const t=$("#tip"); if(t) t.hidden=true; }
 function bindTips(root){ root.querySelectorAll("[data-tip]").forEach(n=>{ n.addEventListener("mousemove",e=>{ $("#tip").innerHTML=n.dataset.tip; showTip(e); }); n.addEventListener("mouseleave",hideTip); }); }
 
 /* Time-series line chart with a hover crosshair. t: shared timestamps; series: [{v:[], color, w, dash, name}] */
-function lineChart(el,{t,series,h=240,fmt=v=>v.toFixed(2),baseline=null,baselineLabel="",area=0,zero=false}){
+function lineChart(el,{t,series,h=240,fmt=v=>v.toFixed(2),baseline=null,baselineLabel="",area=0,zero=false,minSpan=0}){
   if(!el) return;
   if(!t||t.length<2){ el.innerHTML='<p class="muted">Not enough history.</p>'; return; }
   const W = Math.max(280, el.clientWidth||600), H=h, L=8, R=62, T=10, B=24;
   const all = series.flatMap(s=>s.v).filter(v=>v!=null); if(baseline!=null) all.push(baseline); if(zero) all.push(0);
   let mn=Math.min(...all), mx=Math.max(...all); const pad=(mx-mn)*.06||1; mn-=pad; mx+=pad;
+  // a minimum span keeps small wiggles from looking like big swings
+  if(minSpan&&mx-mn<minSpan){ const c=baseline!=null?baseline:(mx+mn)/2; mn=Math.min(mn,c-minSpan/2); mx=Math.max(mx,c+minSpan/2); }
   const X = i => L + i/(t.length-1)*(W-L-R), Y = v => T + (1-(v-mn)/(mx-mn))*(H-T-B);
+  const lastIdx = v => { let i=v.length-1; while(i>0&&v[i]==null) i--; return i; };
+  // the end label belongs to whichever series reaches furthest right (e.g. a forecast continuing an actual line)
+  const lead = series.reduce((a,s)=>lastIdx(s.v)>lastIdx(a.v)?s:a, series[0]), s0=lead.v, li=lastIdx(s0), endY=s0[li]==null?null:Y(s0[li]);
   const ticks = niceTicks(mn,mx,4);
   let g = ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/>
-    <text x="${W-R+6}" y="${Y(v)+4}" font-size="11" fill="var(--muted)" font-family="var(--mono)">${fmt(v)}</text>`).join("");
+    ${endY!=null&&Math.abs(Y(v)-endY)<15?"":`<text x="${W-R+6}" y="${Y(v)+4}" font-size="11" fill="var(--muted)" font-family="var(--mono)">${fmt(v)}</text>`}`).join("");
   const span = (t[t.length-1]-t[0])/86400, years = span>800, short = span<150;
   const seen=new Set(); let xl="";
   t.forEach((ts,i)=>{ const d=new Date(ts*1000); const key = years? d.getUTCFullYear() : short? d.getUTCFullYear()+"-"+d.getUTCMonth()+"-"+(d.getUTCDate()<15) : d.getUTCFullYear()+"-"+d.getUTCMonth();
@@ -198,14 +215,11 @@ function lineChart(el,{t,series,h=240,fmt=v=>v.toFixed(2),baseline=null,baseline
       xl+=`<text x="${X(i)}" y="${H-6}" font-size="11" fill="var(--muted)" text-anchor="middle">${lab}</text>`; }});
   if(baseline!=null) g+=`<line x1="${L}" x2="${W-R}" y1="${Y(baseline)}" y2="${Y(baseline)}" stroke="var(--faint)" stroke-dasharray="3 3"/>`+
     (baselineLabel?`<text x="${L+4}" y="${Y(baseline)-5}" font-size="11" fill="var(--muted)">${esc(baselineLabel)}</text>`:"");
-  const lastIdx = v => { let i=v.length-1; while(i>0&&v[i]==null) i--; return i; };
   const paths = series.map((s,si)=>{ let d="",on=false;
     s.v.forEach((v,i)=>{ if(v==null){on=false;return;} d+=(on?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1); on=true; });
     const first=s.v.findIndex(v=>v!=null), last=lastIdx(s.v);
     const fill = (si===0&&area&&first>=0) ? `<path d="${d}L${X(last)} ${H-B}L${X(first)} ${H-B}Z" fill="${s.color}" fill-opacity=".08"/>` : "";
     return fill+`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.w||2}" ${s.dash?`stroke-dasharray="${s.dash}"`:""} stroke-linejoin="round"/>`; }).join("");
-  // the end label belongs to whichever series reaches furthest right (e.g. a forecast continuing an actual line)
-  const lead = series.reduce((a,s)=>lastIdx(s.v)>lastIdx(a.v)?s:a, series[0]), s0=lead.v, li=lastIdx(s0);
   const end = s0[li]==null? "" : `<circle cx="${X(li)}" cy="${Y(s0[li])}" r="4" fill="${lead.color}" stroke="var(--surface)" stroke-width="2"/>
     <rect x="${W-R+2}" y="${Y(s0[li])-9}" width="${R-4}" height="18" rx="4" fill="${lead.color}"/>
     <text x="${W-R+6}" y="${Y(s0[li])+4}" font-size="11" fill="#fff" font-family="var(--mono)">${fmt(s0[li])}</text>`;
@@ -250,7 +264,7 @@ function curveChart(el,{sets,h=280,fmt=v=>v.toFixed(2)+"%"}){
   svg.addEventListener("mouseleave",()=>{xh.setAttribute("visibility","hidden");hideTip();});
 }
 
-/* Scatter with a best-fit line. pts: [{x,y,label,key,tip,color}]. Labels are nudged apart so neighbours stay readable. */
+/* Scatter with a best-fit line. pts: [{x,y,label,key,tip,color}]. Labels sit beside their own dot without overlapping. */
 function scatterChart(el,{pts,xlab,ylab,xfmt=v=>v.toFixed(1),yfmt=v=>v.toFixed(1),fit=true,h,zeroX=false,zeroY=false,quad=null}){
   if(!el) return; pts=pts.filter(p=>isNum(p.x)&&isNum(p.y));
   if(pts.length<3){ el.innerHTML='<p class="muted">Not enough markets have both numbers.</p>'; return; }
@@ -269,11 +283,21 @@ function scatterChart(el,{pts,xlab,ylab,xfmt=v=>v.toFixed(1),yfmt=v=>v.toFixed(1
     const sxx=pts.reduce((a,p)=>a+(p.x-mx)**2,0), sxy=pts.reduce((a,p)=>a+(p.x-mx)*(p.y-my),0), syy=pts.reduce((a,p)=>a+(p.y-my)**2,0);
     if(sxx>0){ const b=sxy/sxx, a=my-b*mx, r2=syy>0?(sxy*sxy)/(sxx*syy):0; fitInfo={a,b,r2};
       g+=`<line x1="${X(xmn)}" x2="${X(xmx)}" y1="${Y(a+b*xmn)}" y2="${Y(a+b*xmx)}" stroke="var(--faint)" stroke-width="1.5" stroke-dasharray="6 4"/>`; } }
-  const placed=[]; let dots="";
-  pts.slice().sort((a,b)=>a.y-b.y).forEach(p=>{ const x=X(p.x), y=Y(p.y);
-    let ly=y+4; while(placed.some(q=>Math.abs(q.y-ly)<11&&Math.abs(q.x-x)<26)) ly+=11; placed.push({x,y:ly});
-    dots+=`<g class="dotg" ${p.key?`data-open="${esc(p.key)}"`:""} data-tip="${esc(p.tip||p.label)}"><circle cx="${x}" cy="${y}" r="5" fill="${p.color||"var(--s1)"}" stroke="var(--surface)" stroke-width="2"/>
-      <text x="${x+8}" y="${ly}" font-size="11" fill="var(--ink)">${esc(p.label)}</text></g>`; });
+  // each label goes right, left, above or below its own dot, wherever it hits no other dot or label;
+  // the most crowded dots choose first, and a label with no free spot is left to the tooltip
+  const P=pts.map(p=>({p,x:X(p.x),y:Y(p.y)})), boxes=[];
+  if(quad){ const qw=W<560?90:170, qh=W<560?34:20;  // keep dot labels off the corner labels
+    boxes.push({x0:L,x1:L+qw,y0:T,y1:T+qh},{x0:W-R-qw,x1:W-R,y0:T,y1:T+qh},{x0:L,x1:L+qw,y0:H-B-qh-2,y1:H-B},{x0:W-R-qw,x1:W-R,y0:H-B-qh-2,y1:H-B}); }
+  const crowd=d=>P.filter(e=>Math.abs(e.x-d.x)<40&&Math.abs(e.y-d.y)<24).length;
+  const free=b=>b.x0>=L&&b.x1<=W-2&&b.y0>=T-2&&b.y1<=H-B+2&&!boxes.some(q=>b.x0<q.x1&&b.x1>q.x0&&b.y0<q.y1&&b.y1>q.y0)
+    &&!P.some(e=>e.x>b.x0-5&&e.x<b.x1+5&&e.y>b.y0-5&&e.y<b.y1+5);
+  const lab=new Map();
+  P.slice().sort((a,b)=>crowd(b)-crowd(a)).forEach(d=>{ const w=String(d.p.label).length*6.7+2;
+    for(const [tx,ty,an] of [[d.x+8,d.y+4,"start"],[d.x-8,d.y+4,"end"],[d.x,d.y-9,"middle"],[d.x,d.y+17,"middle"],[d.x+7,d.y-6,"start"],[d.x+7,d.y+14,"start"],[d.x-7,d.y-6,"end"],[d.x-7,d.y+14,"end"]]){
+      const x0=an==="start"?tx:an==="end"?tx-w:tx-w/2, b={x0,x1:x0+w,y0:ty-10,y1:ty+2};
+      if(free(b)){ boxes.push(b); lab.set(d,`<text x="${tx}" y="${ty}" font-size="11" fill="var(--ink)" text-anchor="${an}">${esc(d.p.label)}</text>`); break; } } });
+  const dots=P.map(d=>`<g class="dotg" ${d.p.key?`data-open="${esc(d.p.key)}"`:""} data-tip="${esc(d.p.tip||d.p.label)}"><circle cx="${d.x}" cy="${d.y}" r="5" fill="${d.p.color||"var(--s1)"}" stroke="var(--surface)" stroke-width="2"/>
+      ${lab.get(d)||""}</g>`).join("");
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(ylab)} against ${esc(xlab)}">${g}${dots}</svg>`;
   bindTips(el);
   return fitInfo;
@@ -281,14 +305,15 @@ function scatterChart(el,{pts,xlab,ylab,xfmt=v=>v.toFixed(1),yfmt=v=>v.toFixed(1
 
 /* Horizontal bars from zero (can be negative). items: [{label, v, sub, key, color}] */
 function barsSVG(items,{fmt=v=>v.toFixed(1),labelW=150,rowH=26}={}){
-  const W=600, L=labelW, H=items.length*rowH+8;
+  // on a phone, draw at the card's real width (no sub-labels) so the text isn't shrunk to fit
+  const narrow=innerWidth<720, W=narrow?Math.max(300,innerWidth-64):600, L=narrow?Math.min(labelW,Math.round(W*.34)):labelW, H=items.length*rowH+8;
   const vals=items.map(x=>x.v??0), lo=Math.min(0,...vals), hi=Math.max(0,...vals), span=(hi-lo)||1;
   const padL=lo<0?58:6, padR=hi>0?70:6;  // room for the value labels beside the bars
   const sx=v=>L+padL+(v-lo)/span*(W-L-padL-padR), zero=sx(0);
   const rows=items.map((x,i)=>{ const y=4+i*rowH, v=x.v, x0=Math.min(zero,sx(v??0)), w=Math.abs(sx(v??0)-zero);
     const ty=y+rowH/2+4;
     return `<g ${x.key?`data-open="${esc(x.key)}" style="cursor:pointer"`:""}><text x="0" y="${ty}" font-size="12.5" fill="var(--ink)">${esc(x.label)}</text>
-      ${x.sub?`<text x="${L-8}" y="${ty}" font-size="11" fill="var(--faint)" text-anchor="end">${esc(x.sub)}</text>`:""}
+      ${x.sub&&!narrow?`<text x="${L-8}" y="${ty}" font-size="11" fill="var(--faint)" text-anchor="end">${esc(x.sub)}</text>`:""}
       ${v==null?"":`<rect x="${x0}" y="${y+(rowH-14)/2}" width="${Math.max(1,w)}" height="14" rx="3" fill="${x.color||(v>=0?"var(--s1)":"var(--dneg)")}"/>
       <text x="${v>=0?x0+w+6:x0-6}" y="${ty}" font-size="12" font-family="var(--mono)" fill="var(--ink)" text-anchor="${v>=0?"start":"end"}">${esc(fmt(v))}</text>`}</g>`; }).join("");
   return `<svg viewBox="0 0 ${W} ${H}" role="img"><line x1="${zero}" x2="${zero}" y1="0" y2="${H}" stroke="var(--line)"/>${rows}</svg>`;

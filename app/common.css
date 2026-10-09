@@ -1,6 +1,6 @@
 /* Bond Compass. Same layout family as Sector Compass, its own palette: navy ink, parchment and brass. */
 :root{
-  --bg:#F2EFE8; --surface:#FFFFFF; --surface2:#F8F6F1; --ink:#131A2C; --muted:#565E72; --faint:#8A90A0;
+  --bg:#F2EFE8; --surface:#FFFFFF; --surface2:#F8F6F1; --ink:#131A2C; --muted:#565E72; --faint:#6E7486;
   --line:#DDD8CC; --accent:#9A6200; --accent-ink:#FFFFFF; --brand:#0F1C3F;
   --pos:#167A55; --neg:#C2322F; --warn:#C25412; --info:#2D6CB5;
   /* chart series: the validated reference order (blue, orange, aqua, yellow, magenta) */
@@ -14,14 +14,14 @@
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0A0F1C; --surface:#111829; --surface2:#162035; --ink:#E7EAF2; --muted:#949CB2; --faint:#636C84;
+  --bg:#0A0F1C; --surface:#111829; --surface2:#162035; --ink:#E7EAF2; --muted:#949CB2; --faint:#7C859C;
   --line:#243049; --accent:#E8B850; --accent-ink:#141006; --brand:#E8B850;
   --pos:#45C890; --neg:#FF6F7D; --warn:#FF9147; --info:#6EA9F2;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
   --dpos:#3987e5; --dneg:#e66767; --dmid:#252E44;
   --shadow:0 1px 2px rgba(0,0,0,.35),0 8px 28px rgba(0,0,0,.3); color-scheme:dark;}}
 :root[data-theme="dark"]{
-  --bg:#0A0F1C; --surface:#111829; --surface2:#162035; --ink:#E7EAF2; --muted:#949CB2; --faint:#636C84;
+  --bg:#0A0F1C; --surface:#111829; --surface2:#162035; --ink:#E7EAF2; --muted:#949CB2; --faint:#7C859C;
   --line:#243049; --accent:#E8B850; --accent-ink:#141006; --brand:#E8B850;
   --pos:#45C890; --neg:#FF6F7D; --warn:#FF9147; --info:#6EA9F2;
   --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181;
@@ -134,6 +134,8 @@ section{margin-top:28px}
 .tab{border:0;background:none;padding:5px 11px;border-radius:6px;cursor:pointer;font-weight:500;font-size:14px;color:var(--muted)}
 .tab:hover{color:var(--ink)}
 .tab[aria-pressed="true"]{background:var(--brand);color:var(--bg)}
+/* picked central banks wear their line colour, so the chip itself stays neutral */
+#bankChips .tab[aria-pressed="true"]{background:var(--surface2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--faint)}
 .search{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;min-width:0;width:240px}
 
 /* tables */
@@ -209,7 +211,7 @@ tr.dim td{color:var(--faint)}
 .disclaimer{margin-top:18px;font-size:12.5px;color:var(--faint);max-width:110ch}
 .loading{padding:60px 0;text-align:center;color:var(--muted)}
 .err{color:var(--neg)}
-.note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 0;max-width:95ch}
 
 /* drawer */
 .scrim{position:fixed;inset:0;background:rgba(5,8,16,.5);z-index:40}
@@ -236,7 +238,7 @@ tr.dim td{color:var(--faint)}
 .viewbar{position:sticky;top:0;z-index:20;background:color-mix(in oklab,var(--bg) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-block:1px solid var(--line)}
 .views{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;padding-block:0!important}
 .views::-webkit-scrollbar{display:none}
-.views button{display:inline-flex;align-items:center;gap:7px;flex:none;border:0;background:none;margin:0 0 -1px;padding:12px 12px 10px;font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.views button{display:inline-flex;align-items:center;gap:7px;flex:none;border:0;background:none;margin:0 0 -1px;padding:12px 9px 10px;font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
 .views button:hover{color:var(--ink)}
 .views button[aria-pressed="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 .ico{flex:none;display:inline-block;vertical-align:-2px}
@@ -295,9 +297,11 @@ details.fold>summary:hover{color:var(--accent)}
 .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
 .meter{height:8px;border-radius:4px;overflow:hidden;position:relative}
 .meter i{display:block;height:100%;border-radius:4px}
-.rangebar{position:relative;height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--line);margin:6px 0 2px}
-.rangebar i{position:absolute;top:-4px;width:3px;height:14px;border-radius:2px;background:var(--ink)}
-.rangebar b{position:absolute;top:-3px;width:2px;height:12px;background:var(--faint)}
+.rangebar{position:relative;height:6px;border-radius:3px;background:color-mix(in oklab,var(--ink) 14%,var(--surface));margin:9px 6px 5px}
+.rangebar em{position:absolute;top:0;bottom:0;border-radius:3px;background:color-mix(in oklab,var(--ink) 34%,var(--surface))}
+.rangebar i{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--surface)}
+.rstrip{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px;align-items:center;font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:8px 0 2px}
+.rstrip .rangebar{margin:0 8px}
 .tag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
 .tag.pos{color:var(--pos);border-color:color-mix(in oklab,var(--pos) 35%,var(--line));background:color-mix(in oklab,var(--pos) 8%,var(--surface))}
 .tag.neg{color:var(--neg);border-color:color-mix(in oklab,var(--neg) 35%,var(--line));background:color-mix(in oklab,var(--neg) 7%,var(--surface))}
@@ -328,7 +332,9 @@ details.fold>summary:hover{color:var(--accent)}
 .toolbar .search{flex:1;min-width:180px;max-width:300px}
 
 /* backdrop rules */
-.rulegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.rulegrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.rulegrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.rulegrid{grid-template-columns:minmax(0,1fr)}}
 .rule{padding:14px 16px;display:grid;gap:8px;align-content:start;font-size:14px;border-left:4px solid var(--line)}
 .rule.pos{border-left-color:var(--pos)}.rule.neg{border-left-color:var(--neg)}.rule.warn{border-left-color:var(--warn)}.rule.info{border-left-color:var(--info)}
 .rule.off{opacity:.85}
@@ -352,16 +358,30 @@ details.fold>summary:hover{color:var(--accent)}
 .scatter .dotg:hover circle{stroke:var(--ink)}
 
 /* credit ladder */
-.ladder{display:grid;gap:8px}
-.ladder .lrow{display:grid;grid-template-columns:110px minmax(0,1fr) 64px 78px;gap:10px;align-items:center;font-size:13px}
-.ladder .lbar{height:14px;border-radius:0 4px 4px 0;background:var(--s1)}
-.ladder .lv{font-family:var(--mono);text-align:right}
-.ladder .lp{font-family:var(--mono);font-size:11.5px;color:var(--muted);text-align:right}
+.ladder{display:grid;margin-top:14px}
+.ladder .lhead,.ladder .lrow{display:grid;grid-template-columns:112px 76px minmax(110px,1fr) 128px;gap:6px 14px;align-items:center}
+.ladder .lhead{font-size:12px;color:var(--faint);padding-bottom:6px}
+.ladder .lhead i{display:inline-block;width:18px;height:6px;border-radius:3px;vertical-align:middle;margin:0 4px 0 8px;background:color-mix(in oklab,var(--ink) 34%,var(--surface))}
+.ladder .lhead span:nth-child(2){text-align:right}
+.ladder .lgrp{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:12px 0 4px;border-top:1px solid var(--line)}
+.ladder .lgrp small{font-family:var(--body);font-weight:400;letter-spacing:0;text-transform:none;color:var(--faint);font-size:12px;margin-left:6px}
+.ladder .lrow{padding:7px 0;font-size:14px}
+.ladder .lrow+.lrow{border-top:1px solid color-mix(in oklab,var(--line) 55%,transparent)}
+.ladder .lname{font-weight:600}
+.ladder .lval{font-family:var(--mono);font-size:16px;text-align:right}
+.ladder .lval small{font-size:11px;color:var(--muted);margin-left:2px}
+.ladder .lread{font-size:13px;color:var(--muted);line-height:1.3}
+.ladder .lread.hi{color:var(--ink);font-weight:600}
+.ladder .rstrip{margin:0;grid-template-columns:42px minmax(0,1fr) 46px}
+.ladder .rstrip span:first-child{text-align:right}
 
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px}
 .kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--mono);font-size:13px}
 
 @media (max-width:1200px){.macro{grid-template-columns:repeat(3,1fr)}.picks{grid-template-columns:1fr 1fr}}
+/* a short last row of tiles stretches to fill it, instead of leaving empty cells */
+@media (max-width:1200px) and (min-width:721px){.macro:not(.c2):not(.c3)>.tile:nth-child(3n+1):last-child{grid-column:span 3}.macro:not(.c2):not(.c3)>.tile:nth-child(3n+2):last-child{grid-column:span 2}}
+@media (max-width:720px){.macro>.tile:nth-child(odd):last-child{grid-column:span 2}}
 @media (max-width:1000px){.two,.two.wide,.three{grid-template-columns:1fr}}
 @media (max-width:720px){
   .wrap{padding-inline:16px}.macro,.macro.c3{grid-template-columns:repeat(2,1fr)}.picks{grid-template-columns:1fr}
@@ -369,7 +389,9 @@ details.fold>summary:hover{color:var(--accent)}
   .status{order:3;width:100%;flex-wrap:nowrap;font-size:12px;align-items:flex-start}.status .dot{flex:none;margin-top:5px}
   .drawer{padding-inline:16px}.drawer .hd h2{font-size:26px}.dtabs{margin-inline:-16px;padding-inline:16px}
   .verdict{grid-template-columns:1fr}.parts{grid-template-columns:minmax(0,1fr) 60px}.parts .pv{grid-column:1/-1;text-align:left;min-width:0}
-  .ladder .lrow{grid-template-columns:80px minmax(0,1fr) 56px}.ladder .lp{display:none}
+  .ladder .lhead{display:none}
+  .ladder .lrow{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name val" "strip strip" "read read";gap:2px 10px;padding:9px 0}
+  .ladder .lname{grid-area:name}.ladder .lval{grid-area:val}.ladder .rstrip{grid-area:strip;margin:4px 0 0}.ladder .lread{grid-area:read}
 }
 
 /* the long run and buying on IBKR */
