@@ -101,6 +101,7 @@ const ICON = {
   down:'<path d="M12 5v14"/><path d="m6 13 6 6 6-6"/>',
   award:'<circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 8 5-3 5 3-1.5-8"/>',
   shield:'<path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/>',
+  safety:'<path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="m9 12 2 2 4-4"/>',
   coin:'<circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.5-.8-1.5-1.2-2.8-1.2-1.7 0-2.8.8-2.8 1.9 0 2.7 5.6 1.4 5.6 4.2 0 1.1-1.1 1.9-2.8 1.9-1.4 0-2.4-.5-2.9-1.3M12 6.5v1.5M12 16v1.5"/>',
   alert:'<path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
   trend:'<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
@@ -358,7 +359,7 @@ function startLoop({url,onData}){
     $("#stamp").textContent=`Live · checked ${gen.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})} · latest trade ${last} · next check in ${mm?mm+" min":ss+" s"}`;
   }
   $("#refresh").onclick=()=>load(true);
-  document.addEventListener("click",e=>{ const t=e.target.closest("[data-open]"); if(t&&typeof openDetail==="function") openDetail(t.dataset.open); });
+  document.addEventListener("click",e=>{ const t=e.target.closest("[data-open]"); if(t&&typeof openDetail==="function") openDetail(t.dataset.open,t.dataset.dtab); });
   setInterval(()=>{ stamp(); if(L.nextAt && Date.now()>=L.nextAt) load(false); },1000);
   document.addEventListener("keydown",e=>{ if(e.key==="Escape") Drawer.close();
     if((e.key==="Enter"||e.key===" ")&&e.target.matches?.("[data-open][role=button]")){e.preventDefault();e.target.click();} });

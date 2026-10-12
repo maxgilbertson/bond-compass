@@ -11,6 +11,7 @@ What counts (thresholds below, deliberately few so alerts stay worth reading):
   - a euro-area spread over Germany moved 10bp or more in a day
   - US high-yield or investment-grade spreads moved into the widest or tightest 10% of the last 3 years
   - a central bank changed its rate
+  - a government's safety verdict changed (Safety tab), or its average credit rating moved a notch
 """
 import json
 from datetime import datetime, timezone
@@ -34,6 +35,11 @@ def compare(data):
             old = prev["rows"].get(code)
             if old and old[3] and r["m"]["signal"] and old[3] != r["m"]["signal"]:
                 out.append(("Signal changes", f"**{r['name']}**: {old[3]} → {r['m']['signal']} (score {old[0]:.0f} → {r['m']['score']:.0f})"))
+            verdict, rating = (r.get("safety") or {}).get("verdict"), (r.get("rating") or {}).get("label")
+            if old and len(old) > 6 and old[6] and verdict and old[6] != verdict:
+                out.append(("Safety verdicts", f"**{r['name']}**: {old[6]} → {verdict}"))
+            if old and len(old) > 7 and old[7] and rating and old[7] != rating:
+                out.append(("Credit ratings", f"**{r['name']}**: average rating {old[7]} → {rating}"))
             b = next(x for x in r["bonds"] if x["tenor"] == r["bench"])
             if old and old[4] == r["bench"] and old[5] is not None:
                 move = (b["y"] - old[5]) * 100

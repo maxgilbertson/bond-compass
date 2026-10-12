@@ -17,6 +17,8 @@ import extra_sources
 import markets
 import monthly_sources
 import perf
+import safety
+import safety_sources
 import snapshot
 import sources
 import tracking
@@ -237,6 +239,7 @@ def fetch_everything():
             "funds": ex.submit(_try, sources.fund_prices, FUNDS),
             "extra": ex.submit(_try, extra_sources.fetch_all),
             "boe": ex.submit(_try, sources.boe, [b[0] for b in markets.BOE]),
+            "safety": ex.submit(_try, safety_sources.fetch_all),
         }
         got = {k: j.result() for k, j in jobs.items()}
     errors = [e for _, e in got.values() if e]
@@ -260,6 +263,53 @@ def load_history(cnbc):
         if not H.get(sym) and len(own) >= 2:
             H[sym] = own
     return H
+
+
+def public_finances(imf, c, year):
+    """One government's finances from the IMF (WEO and Fiscal Monitor): this year, the path, and forecasts."""
+    s = lambda ind: (imf.get(ind) or {}).get(c) or {}
+    g = lambda ind, yr=year: s(ind).get(yr)
+    fwd = lambda ind: [s(ind).get(y) for y in range(year + 1, year + 6)]
+    infl_f = [v for v in fwd("PCPIPCH") if v is not None]
+    grow_f = [v for v in fwd("NGDP_RPCH") if v is not None]
+    nominal_g = [((1 + a / 100) * (1 + b / 100) - 1) * 100 for a, b in zip(fwd("NGDP_RPCH"), fwd("PCPIPCH"))
+                 if a is not None and b is not None]
+    debt, primary, balance, revenue = g("GGXWDG_NGDP"), g("GGXONLB_G01_GDP_PT"), g("GGXCNL_G01_GDP_PT"), g("GGR_G01_GDP_PT")
+    if balance is None:
+        balance = g("GGXCNL_NGDP")
+    interest = primary - balance if primary is not None and balance is not None else None
+    path = s("GGXWDG_NGDP")
+    # the interest bill year by year (net interest = primary balance minus overall balance), past and forecast
+    prim_s, bal_s, rev_s = s("GGXONLB_G01_GDP_PT"), s("GGXCNL_G01_GDP_PT"), s("GGR_G01_GDP_PT")
+    int_path = [[y, round(prim_s[y] - bal_s[y], 2), round(100 * (prim_s[y] - bal_s[y]) / rev_s[y], 1) if rev_s.get(y) else None]
+                for y in range(year - 12, year + 6) if prim_s.get(y) is not None and bal_s.get(y) is not None]
+    span = lambda series, dp: [[y, round(v, dp)] for y, v in sorted(series.items()) if year - 12 <= y <= year + 6]
+    return {
+        "year": year, "debt": debt, "netDebt": g("GGXWDN_G01_GDP_PT"), "balance": balance, "primary": primary,
+        "interest": round(interest, 2) if interest is not None else None, "revenue": revenue,
+        "intRev": round(100 * interest / revenue, 1) if interest is not None and revenue else None,
+        "effRate": round(100 * interest / debt, 2) if interest is not None and debt else None,
+        "growth": g("NGDP_RPCH"), "inflation": g("PCPIPCH"), "current": g("BCA_NGDPD"),
+        "unemployment": g("LUR"), "gdpUsd": g("NGDPD"),
+        "inflFwd": round(mean(infl_f), 2) if infl_f else None, "inflNext": infl_f[0] if infl_f else None,
+        "inflPath": infl_f, "growthFwd": round(mean(grow_f), 2) if grow_f else None,
+        "nomGrowth": round(mean(nominal_g), 2) if nominal_g else None,
+        "debtIn5y": path.get(year + 5), "debtPath": span(path, 1),
+        "deficitPath": span(bal_s, 2), "primaryPath": span(prim_s, 2),
+        "intPath": int_path,  # [year, % of GDP, % of revenue]
+        "inflHist": [[y, round(v, 2)] for y, v in sorted(s("PCPIPCH").items()) if year - 20 <= y <= year + 5],
+    }
+
+
+def debt_arithmetic(fis, y10):
+    """r - g, the primary balance that would hold debt steady at today's 10-year yield, and the gap to it."""
+    if y10 is not None and fis["nomGrowth"] is not None and fis["debt"] is not None:
+        rg = y10 - fis["nomGrowth"]
+        need = rg / (100 + fis["nomGrowth"]) * fis["debt"]  # primary balance that holds debt/GDP steady
+        fis.update(rMinusG=round(rg, 2), pbNeeded=round(need, 2),
+                   gap=round(need - fis["primary"], 2) if fis["primary"] is not None else None)
+    fis["refi"] = round(y10 - fis["effRate"], 2) if y10 is not None and fis.get("effRate") is not None else None
+    return fis
 
 
 def build():
@@ -351,36 +401,8 @@ def build():
     gb_cash, us_cash = cash.get("GB"), cash.get("US")
 
     # ---------- pass 3: public finances (IMF)
-    def imf_series(ind, c):
-        return (imf.get(ind) or {}).get(c) or {}
-
     for r in rows:
-        c = r["_imf"]
-        g = lambda ind, yr=year: imf_series(ind, c).get(yr)
-        fwd = lambda ind: [imf_series(ind, c).get(y) for y in range(year + 1, year + 6)]
-        infl_f = [v for v in fwd("PCPIPCH") if v is not None]
-        grow_f = [v for v in fwd("NGDP_RPCH") if v is not None]
-        nominal_g = [((1 + a / 100) * (1 + b / 100) - 1) * 100 for a, b in zip(fwd("NGDP_RPCH"), fwd("PCPIPCH"))
-                     if a is not None and b is not None]
-        debt, primary, balance, revenue = g("GGXWDG_NGDP"), g("GGXONLB_G01_GDP_PT"), g("GGXCNL_G01_GDP_PT"), g("GGR_G01_GDP_PT")
-        if balance is None:
-            balance = g("GGXCNL_NGDP")
-        interest = primary - balance if primary is not None and balance is not None else None
-        path = imf_series("GGXWDG_NGDP", c)
-        r["fiscal"] = {
-            "year": year, "debt": debt, "netDebt": g("GGXWDN_G01_GDP_PT"), "balance": balance, "primary": primary,
-            "interest": round(interest, 2) if interest is not None else None, "revenue": revenue,
-            "intRev": round(100 * interest / revenue, 1) if interest is not None and revenue else None,
-            "effRate": round(100 * interest / debt, 2) if interest is not None and debt else None,
-            "growth": g("NGDP_RPCH"), "inflation": g("PCPIPCH"), "current": g("BCA_NGDPD"),
-            "unemployment": g("LUR"), "gdpUsd": g("NGDPD"),
-            "inflFwd": round(mean(infl_f), 2) if infl_f else None, "inflNext": infl_f[0] if infl_f else None,
-            "inflPath": infl_f, "growthFwd": round(mean(grow_f), 2) if grow_f else None,
-            "nomGrowth": round(mean(nominal_g), 2) if nominal_g else None,
-            "debtIn5y": path.get(year + 5), "debtPath": [[y, round(v, 1)] for y, v in sorted(path.items()) if year - 12 <= y <= year + 6],
-            "deficitPath": [[y, round(v, 2)] for y, v in sorted(imf_series("GGXCNL_G01_GDP_PT", c).items()) if year - 12 <= y <= year + 6],
-            "primaryPath": [[y, round(v, 2)] for y, v in sorted(imf_series("GGXONLB_G01_GDP_PT", c).items()) if year - 12 <= y <= year + 6],
-        }
+        r["fiscal"] = public_finances(imf, r["_imf"], year)
         rt = rating_block(rts.get(markets.RATING_NAME.get(r["code"], r["name"])))
         r["rating"] = rt
 
@@ -492,14 +514,7 @@ def build():
                     tr[k]["hedged"] = loc + (gdiff - diff) / 100 * yrs_frac
             r["spark"] = [v for _, v in weekly(bench["_h"], now - 365 * DAY)] + [bench["y"]]
         r["tr"] = tr
-        fis = r["fiscal"]
-        y10 = bench["y"]
-        if fis["nomGrowth"] is not None and fis["debt"] is not None:
-            rg = y10 - fis["nomGrowth"]
-            need = rg / (100 + fis["nomGrowth"]) * fis["debt"]  # primary balance that holds debt/GDP steady
-            fis.update(rMinusG=round(rg, 2), pbNeeded=round(need, 2),
-                       gap=round(need - fis["primary"], 2) if fis["primary"] is not None else None)
-        fis["refi"] = round(y10 - fis["effRate"], 2) if fis.get("effRate") is not None else None
+        fis = debt_arithmetic(r["fiscal"], bench["y"])
         r["_inputs"] = {
             "realY": bench.get("realY"), "carry": bench.get("breakeven"),
             "cheap": bench.get("pct3y"),
@@ -524,6 +539,13 @@ def build():
         score = blend(list(WEIGHTS))
         r["m"] = {"score": score, "value": blend(VALUE_PARTS), "safety": blend(SAFETY_PARTS), "parts": parts,
                   "inputs": r.pop("_inputs"), "signal": signal(score)}
+
+    # ---------- how safe is each government: warning lights beside the score (not part of it)
+    gbp_c = (fx.get("GBP=X") or {}).get("c") or []
+    ext = raw.get("safety") or {}
+    errors = errors + (ext.get("errors") or [])
+    for r in rows:
+        r["safety"] = safety.block(r, ext, gbp_c[-1] if gbp_c else None)
 
     # ---------- the record: score changes, signal log, practice portfolios, and the test on past data
     names = {r["code"]: r["name"] for r in rows}
@@ -579,12 +601,12 @@ def build():
     times = [b["time"] for r in rows for b in r["bonds"] if b.get("time") and not b["stale"]]
     out = {
         "generated": now, "marketTime": max(times) if times else now, "rows": rows,
-        "credit": credit, "move": move_b, "weights": WEIGHTS,
+        "credit": credit, "move": move_b, "weights": WEIGHTS, "safetyMeta": safety.meta(), "safetySources": ext.get("sources") or {},
         "paper": paper, "changes": sig_log, "backtest": bt, "btWeights": backtest.PARTS,
         "health": health(rows, Q, pts, errors, {"imf": imf_at, "fred": fred_at, "bis": bis_at}, rts_checked, now),
         "calendar": calendar_events.upcoming(days=45),
         "funds": funds_block(raw.get("funds")),
-        "monthly": monthly_block(raw.get("monthly") or {}, imf, rts, now),
+        "monthly": monthly_block(raw.get("monthly") or {}, imf, rts, now, ext, gbp_c[-1] if gbp_c else None),
         "gilts": gilts_block(next((r for r in rows if r["code"] == "GB"), None)),
         "rules": backdrop(rows, credit, move_b),
         "sources": {"imfAt": imf_at, "fredAt": fred_at, "bisAt": bis_at, "ratingsChecked": rts_checked,
@@ -610,8 +632,8 @@ def gilts_block(gb):
     return g
 
 
-def monthly_block(data, imf, rts, now):
-    """Markets with monthly yields only: latest values, changes, and the same public-finance context."""
+def monthly_block(data, imf, rts, now, ext=None, gbp_per_usd=None):
+    """Markets with monthly yields only: latest values, changes, and the same public-finance context and safety lights."""
     year = date.today().year
     out = []
     for code, name, region, ccy, imf_code, rname, src in monthly_sources.MONTHLY:
@@ -635,6 +657,9 @@ def monthly_block(data, imf, rts, now):
             "rating": rating_block(rts.get(rname)), "spark": [v for _, v in ten[-36:]],
             "stale": now - last_t > 75 * DAY,
         })
+        m = out[-1]
+        m["fiscal"] = debt_arithmetic(public_finances(imf, imf_code, year), y)
+        m["safety"] = safety.block(m, ext or {}, gbp_per_usd)
     return out
 
 

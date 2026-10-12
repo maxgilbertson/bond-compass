@@ -1,0 +1,470 @@
+{
+ "source": "BoC-BoE Sovereign Default Database, 2026 edition (Bank of Canada Staff Analytical Paper 2026-48); counted: defaults on foreign-currency bonds, bank loans and local-currency debt of at least US$100m (arrears to other governments and official lenders left out). Before 1960: Reinhart and Rogoff.",
+ "page": "https://www.bankofcanada.ca/2026/10/staff-analytical-paper-2026-48/",
+ "coverage": "1960-2025",
+ "markets": {
+  "US": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1933; domestic debt 1933"
+  },
+  "CA": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "BR": {
+   "years": 13,
+   "last": 1994,
+   "episodes": [
+    {
+     "from": 1961,
+     "to": 1961,
+     "what": "Bank loans in default, up to $200m"
+    },
+    {
+     "from": 1983,
+     "to": 1994,
+     "what": "Bank loans and local-currency debt in default, up to $132.3bn"
+    }
+   ],
+   "before1960": "foreign debt 1898-1910, 1914-1919, 1931-1933, 1937-1943"
+  },
+  "MX": {
+   "years": 9,
+   "last": 1990,
+   "episodes": [
+    {
+     "from": 1982,
+     "to": 1990,
+     "what": "Bank loans in default, up to $54.3bn"
+    }
+   ],
+   "before1960": "foreign debt 1827-1830, 1833-1841, 1844-1850, 1854-1864, 1866-1885, 1914-1922, 1928-1942; domestic debt 1850, 1930-1945"
+  },
+  "CL": {
+   "years": 9,
+   "last": 1990,
+   "episodes": [
+    {
+     "from": 1972,
+     "to": 1972,
+     "what": "Bank loans in default, up to $160m"
+    },
+    {
+     "from": 1983,
+     "to": 1990,
+     "what": "Bank loans in default, up to $8.6bn"
+    }
+   ],
+   "before1960": "foreign debt 1826-1842, 1880-1883, 1931-1947"
+  },
+  "PE": {
+   "years": 40,
+   "last": 2017,
+   "episodes": [
+    {
+     "from": 1970,
+     "to": 1970,
+     "what": "Bank loans in default, up to $347m"
+    },
+    {
+     "from": 1976,
+     "to": 1976,
+     "what": "Bank loans in default, up to $387m"
+    },
+    {
+     "from": 1978,
+     "to": 1980,
+     "what": "Bank loans and local-currency debt in default, up to $1.2bn",
+     "note": "1978-80 reschedulings; 1983-97 debt crisis incl. arrears to the IMF, World Bank and IADB in the late 1980s; Brady exchange 1997. Afterwards mainly two domestic-law local-currency debts: bonds in default 1980-2022 (2022 Gramercy arbitration award) and another domestic-law bond 1992-2017; plus some official arrears. Last year 2022."
+    },
+    {
+     "from": 1983,
+     "to": 2017,
+     "what": "Bank loans and local-currency debt in default, up to $11.1bn",
+     "note": "1978-80 reschedulings; 1983-97 debt crisis incl. arrears to the IMF, World Bank and IADB in the late 1980s; Brady exchange 1997. Afterwards mainly two domestic-law local-currency debts: bonds in default 1980-2022 (2022 Gramercy arbitration award) and another domestic-law bond 1992-2017; plus some official arrears. Last year 2022."
+    }
+   ],
+   "before1960": "foreign debt 1826-1848, 1876-1889, 1931-1951; domestic debt 1850, 1932-1945"
+  },
+  "GB": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "domestic debt 1932"
+  },
+  "DE": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1807, 1812-1814, 1850, 1932-1953; domestic debt 1922-1923, 1948"
+  },
+  "FR": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1812"
+  },
+  "IT": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1940-1946; domestic debt 1944"
+  },
+  "ES": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1820, 1824-1834, 1837-1867, 1877-1882, 1936; domestic debt 1936-1939"
+  },
+  "NL": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1802-1814"
+  },
+  "BE": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "AT": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1802-1816, 1868-1870, 1914-1915, 1932-1933, 1938, 1940-1952; domestic debt 1920-1922, 1945-1948"
+  },
+  "PT": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1828, 1837-1841, 1850-1856, 1892-1901"
+  },
+  "GR": {
+   "years": 7,
+   "last": 2012,
+   "episodes": [
+    {
+     "from": 1960,
+     "to": 1965,
+     "what": "Foreign-currency bonds in default, up to $387m",
+     "note": "Pre-war (1932) foreign-currency bond default still unsettled 1960-65 (source cited: FBPC 1965 report); R&R date this default 1932-1964."
+    },
+    {
+     "from": 2012,
+     "to": 2012,
+     "what": "Foreign-currency bonds in default, up to $312.4bn",
+     "note": "2012 private-sector bond exchange (PSI), US$312bn of euro bonds (classed as FC bonds); 2013 restructuring of US$213bn of official euro-area loans (lower rates, deferrals, longer maturities)."
+    }
+   ],
+   "before1960": "foreign debt 1826-1878, 1894-1897, 1932-1959; domestic debt 1932-1955"
+  },
+  "IE": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "FI": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "CH": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "SE": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1812"
+  },
+  "NO": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "PL": {
+   "years": 24,
+   "last": 1994,
+   "episodes": [
+    {
+     "from": 1966,
+     "to": 1975,
+     "what": "Foreign-currency bonds in default, up to $119m",
+     "note": "Pre-WWII foreign-currency bonds still unsettled, US$89-119m, to 1976 (source cited: FBPC 1976 report)."
+    },
+    {
+     "from": 1981,
+     "to": 1994,
+     "what": "Bank loans in default, up to $13.5bn"
+    }
+   ],
+   "before1960": "foreign debt 1936-1937, 1940-1952; domestic debt 1922-1923"
+  },
+  "HU": {
+   "years": 8,
+   "last": 1967,
+   "episodes": [
+    {
+     "from": 1960,
+     "to": 1967,
+     "what": "Foreign-currency bonds in default, up to $162m",
+     "note": "Pre-WWII foreign-currency bonds still unsettled, US$52-162m, to 1975 (sources cited: CCFB and FBPC 1976 reports)."
+    }
+   ],
+   "before1960": "foreign debt 1932-1937, 1941-1959; domestic debt 1945-1946"
+  },
+  "TR": {
+   "years": 7,
+   "last": 1999,
+   "episodes": [
+    {
+     "from": 1976,
+     "to": 1979,
+     "what": "Bank loans in default, up to $2.8bn"
+    },
+    {
+     "from": 1981,
+     "to": 1982,
+     "what": "Bank loans in default, up to $2.9bn"
+    },
+    {
+     "from": 1999,
+     "to": 1999,
+     "what": "Local-currency debt in default, up to $48.3bn",
+     "note": "Local-currency default: withholding tax imposed on government securities issued before December 1999 (US$48.3bn)."
+    }
+   ],
+   "before1960": "foreign debt 1876-1881, 1915-1928, 1931-1932, 1940-1943, 1956, 1958"
+  },
+  "JP": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1942-1952; domestic debt 1945-1952"
+  },
+  "AU": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "domestic debt 1931-1932"
+  },
+  "NZ": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "domestic debt 1933"
+  },
+  "CN": {
+   "years": 28,
+   "last": 1987,
+   "episodes": [
+    {
+     "from": 1960,
+     "to": 1987,
+     "what": "Foreign-currency bonds in default, up to $1.2bn",
+     "note": "Pre-1949 sterling bonds repudiated by the PRC, settled in the 1987 China-UK agreement (US bondholder claims on other pre-1949 bonds are NOT included)."
+    }
+   ],
+   "before1960": "foreign debt 1921-1936, 1939-1949; domestic debt 1919-1921, 1932, 1946-1948"
+  },
+  "IN": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1958"
+  },
+  "ID": {
+   "years": 3,
+   "last": 2002,
+   "episodes": [
+    {
+     "from": 1999,
+     "to": 2000,
+     "what": "Bank loans in default, up to $350m"
+    },
+    {
+     "from": 2002,
+     "to": 2002,
+     "what": "Bank loans in default"
+    }
+   ],
+   "before1960": null
+  },
+  "KR": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "TH": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "HK": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "SG": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "MY": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "PH": {
+   "years": 11,
+   "last": 1992,
+   "episodes": [
+    {
+     "from": 1970,
+     "to": 1970,
+     "what": "Bank loans in default, up to $275m"
+    },
+    {
+     "from": 1983,
+     "to": 1992,
+     "what": "Bank loans in default, up to $12.0bn"
+    }
+   ],
+   "before1960": null
+  },
+  "ZA": {
+   "years": 5,
+   "last": 1993,
+   "episodes": [
+    {
+     "from": 1985,
+     "to": 1987,
+     "what": "Bank loans in default, up to $16.9bn"
+    },
+    {
+     "from": 1989,
+     "to": 1989,
+     "what": "Bank loans in default, up to $7.5bn"
+    },
+    {
+     "from": 1993,
+     "to": 1993,
+     "what": "Bank loans in default, up to $5.0bn"
+    }
+   ],
+   "before1960": null
+  },
+  "EG": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1876-1880"
+  },
+  "NG": {
+   "years": 16,
+   "last": 2001,
+   "episodes": [
+    {
+     "from": 1967,
+     "to": 1967,
+     "what": "Local-currency debt in default, up to $290m",
+     "note": "Local-currency default from a confiscatory currency reform (1967)."
+    },
+    {
+     "from": 1970,
+     "to": 1970,
+     "what": "Local-currency debt in default, up to $112m",
+     "note": "Civil-war era and 1980s-2000s debt problems: supplier/official arrears from 1970, bank-loan arrears and restructurings from 1982, 1984 local-currency default (confiscatory currency reform), promissory notes/FC bonds 1987-88, Paris Club reschedulings (1986, 1989, 1991, 2000, 2005 deal), Brady 1992; arrears cleared after the 2005-06 Paris Club deal."
+    },
+    {
+     "from": 1982,
+     "to": 1992,
+     "what": "Bank loans and foreign-currency bonds and local-currency debt in default, up to $12.5bn",
+     "note": "Civil-war era and 1980s-2000s debt problems: supplier/official arrears from 1970, bank-loan arrears and restructurings from 1982, 1984 local-currency default (confiscatory currency reform), promissory notes/FC bonds 1987-88, Paris Club reschedulings (1986, 1989, 1991, 2000, 2005 deal), Brady 1992; arrears cleared after the 2005-06 Paris Club deal."
+    },
+    {
+     "from": 1995,
+     "to": 1996,
+     "what": "Local-currency debt in default, up to $250m",
+     "note": "Civil-war era and 1980s-2000s debt problems: supplier/official arrears from 1970, bank-loan arrears and restructurings from 1982, 1984 local-currency default (confiscatory currency reform), promissory notes/FC bonds 1987-88, Paris Club reschedulings (1986, 1989, 1991, 2000, 2005 deal), Brady 1992; arrears cleared after the 2005-06 Paris Club deal."
+    },
+    {
+     "from": 2001,
+     "to": 2001,
+     "what": "Foreign-currency bonds in default, up to $1.2bn",
+     "note": "Civil-war era and 1980s-2000s debt problems: supplier/official arrears from 1970, bank-loan arrears and restructurings from 1982, 1984 local-currency default (confiscatory currency reform), promissory notes/FC bonds 1987-88, Paris Club reschedulings (1986, 1989, 1991, 2000, 2005 deal), Brady 1992; arrears cleared after the 2005-06 Paris Club deal."
+    }
+   ],
+   "before1960": null
+  },
+  "IL": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  },
+  "CO": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1826-1845, 1850-1861, 1873, 1880-1896, 1900-1904, 1932-1944; domestic debt 1900-1901"
+  },
+  "CZ": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "foreign debt 1938-1946, 1959"
+  },
+  "DK": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": "domestic debt 1813"
+  },
+  "RO": {
+   "years": 20,
+   "last": 1986,
+   "episodes": [
+    {
+     "from": 1960,
+     "to": 1975,
+     "what": "Foreign-currency bonds in default, up to $354m",
+     "note": "Pre-WWII foreign-currency bonds still unsettled, US$54-354m, to 1976 (sources cited: CCFB 1976, FBPC 1979)."
+    },
+    {
+     "from": 1981,
+     "to": 1983,
+     "what": "Bank loans in default, up to $1.6bn"
+    },
+    {
+     "from": 1986,
+     "to": 1986,
+     "what": "Bank loans in default, up to $800m"
+    }
+   ],
+   "before1960": "foreign debt 1933-1958; domestic debt 1933-1945"
+  },
+  "TW": {
+   "years": 0,
+   "last": null,
+   "episodes": [],
+   "before1960": null
+  }
+ }
+}

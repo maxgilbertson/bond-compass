@@ -40,8 +40,9 @@ def _read_lines(path):
 # ---------------------------------------------------------------- daily score snapshots
 
 def write_snapshot(data, date=None):
-    """One line per day in a yearly file: {date, rows: {code: [score, value, safety, signal, tenor, yield]}, rules}.
-    Re-running a day replaces its line."""
+    """One line per day in a yearly file: {date, rows: {code: [score, value, safety, signal, tenor, yield,
+    safety verdict, average rating]}, rules}. Re-running a day replaces its line. (Lines before 12 Oct 2026 have
+    only the first six.)"""
     date = date or today_key()
     path = HISTORY / f"scores-{date[:4]}.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -49,7 +50,8 @@ def write_snapshot(data, date=None):
     for r in data["rows"]:
         b = next(x for x in r["bonds"] if x["tenor"] == r["bench"])
         m = r["m"]
-        rows[r["code"]] = [m["score"], m["value"], m["safety"], m["signal"], r["bench"], b["y"]]
+        rows[r["code"]] = [m["score"], m["value"], m["safety"], m["signal"], r["bench"], b["y"],
+                           (r.get("safety") or {}).get("verdict"), (r.get("rating") or {}).get("label")]
     line = {"date": date, "rows": rows, "rules": [x["name"] for x in data["rules"] if x["active"]]}
     days = [d for d in _read_lines(path) if d.get("date") != date] + [line]
     path.write_text("".join(json.dumps(d, separators=(",", ":")) + "\n" for d in sorted(days, key=lambda d: d["date"])),

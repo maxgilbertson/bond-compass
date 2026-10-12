@@ -408,3 +408,77 @@ details.fold>summary:hover{color:var(--accent)}
 .core-stats b{font-family:var(--mono);font-size:18px;font-weight:500}
 .pickgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px}
 @media (max-width:720px){.pickgrid{grid-template-columns:minmax(0,1fr)}}
+
+/* government safety: lights carry a shape as well as a colour (circle low, diamond some, triangle high) */
+.lt{display:inline-flex;align-items:center;gap:7px;padding:3px 9px 3px 8px;border-radius:6px;font-size:12.5px;line-height:1.35;white-space:nowrap;border:1px solid var(--line);background:var(--surface2);color:var(--ink)}
+.lt::before,.ltdot{content:"";display:inline-block;width:9px;height:9px;flex:none;border-radius:50%;background:var(--faint)}
+.lt.low{background:color-mix(in oklab,var(--dpos) 11%,var(--surface));border-color:color-mix(in oklab,var(--dpos) 38%,var(--line))}
+.lt.some{background:color-mix(in oklab,var(--s4) 15%,var(--surface));border-color:color-mix(in oklab,var(--s4) 55%,var(--line))}
+.lt.high{background:color-mix(in oklab,var(--dneg) 14%,var(--surface));border-color:color-mix(in oklab,var(--dneg) 55%,var(--line))}
+.lt.low::before,.ltdot.low{background:var(--dpos)}
+.lt.some::before,.ltdot.some{background:var(--s4);border-radius:1px;transform:rotate(45deg) scale(.82)}
+.lt.high::before,.ltdot.high{background:var(--dneg);border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%)}
+.lt.none{color:var(--faint)}
+.lt.none::before,.ltdot.none{background:transparent;box-shadow:inset 0 0 0 1.5px var(--faint)}
+.vd{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.vd.v1{background:color-mix(in oklab,var(--dpos) 14%,var(--surface));color:color-mix(in oklab,var(--dpos) 65%,var(--ink));border-color:color-mix(in oklab,var(--dpos) 35%,var(--line))}
+.vd.v2{background:color-mix(in oklab,var(--s4) 20%,var(--surface));color:color-mix(in oklab,var(--s4) 40%,var(--ink));border-color:color-mix(in oklab,var(--s4) 50%,var(--line))}
+.vd.v3{background:color-mix(in oklab,var(--dneg) 16%,var(--surface));color:color-mix(in oklab,var(--dneg) 70%,var(--ink));border-color:color-mix(in oklab,var(--dneg) 45%,var(--line))}
+.vd.v4{background:var(--dneg);color:#fff;border-color:var(--dneg)}
+.vdsum{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px}
+.vdsum b{margin-left:4px}
+.safetab td{vertical-align:middle}
+.safeheat td.lc{font-size:12px;min-width:58px}
+.lc.low{background:color-mix(in oklab,var(--dpos) 13%,var(--surface))}
+.lc.some{background:color-mix(in oklab,var(--s4) 22%,var(--surface))}
+.lc.high{background:color-mix(in oklab,var(--dneg) 22%,var(--surface));font-weight:600}
+.lc.none{color:var(--faint)}
+.safeheat th.grp{font-family:var(--display);letter-spacing:.06em;text-transform:uppercase;font-size:11.5px;color:var(--muted);border-bottom:1px solid var(--line);border-left:1px solid var(--line)}
+#tip .ltdot{width:8px;height:8px;margin-right:3px}
+/* who lends */
+.hbar{display:flex;height:16px;border-radius:4px;overflow:hidden;background:var(--surface2);min-width:0}
+.hbar i{display:block;height:100%;min-width:2px}
+.hbar i+i{box-shadow:inset 1.5px 0 0 var(--surface)}
+.hrows{display:grid;gap:7px;margin-top:12px}
+.hrow{display:grid;grid-template-columns:150px minmax(0,1fr) 92px;gap:12px;align-items:center;font-size:13px;cursor:pointer}
+.hrow:hover .hname{color:var(--accent)}
+.hrow .hval{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+/* default record */
+.tl{display:grid;gap:6px}
+.tlrow,.tlaxis{display:grid;grid-template-columns:150px minmax(0,1fr) 56px;gap:12px;align-items:center;font-size:13px}
+.tlrow{cursor:pointer}
+.tlrow:hover .tlname{color:var(--accent)}
+.tltrack{position:relative;height:16px;background:var(--surface2);border-radius:4px}
+.tltrack i{position:absolute;top:0;bottom:0;background:var(--dneg);border-radius:2px;min-width:3px}
+.tlval{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+.tlaxis div{position:relative;height:16px}
+.tlaxis b{position:absolute;transform:translateX(-50%);font-weight:400;font-size:11px;color:var(--muted);font-family:var(--mono)}
+/* the detail panel's safety cards */
+.pcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px}
+.pcard{padding:14px 16px;min-width:0}
+.pc-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pc-head h3{font-size:17px}
+.pc-about{margin:4px 0 8px;font-size:13px;color:var(--muted)}
+.mlist{display:grid}
+.mrow{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:9px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.mrow:last-child{border-bottom:0}
+.mrow b{font-family:var(--mono);font-weight:500;font-size:13px;text-align:right}
+.mrow .mlab{cursor:help;text-decoration:underline dotted var(--faint);text-underline-offset:3px}
+.govs{display:grid;gap:6px}
+.gov{display:grid;grid-template-columns:170px minmax(0,1fr) 30px;gap:10px;align-items:center;font-size:13px}
+.gov b{text-align:right}
+@media (max-width:720px){
+  .hrow{grid-template-columns:92px minmax(0,1fr) 66px;gap:8px;font-size:12px}
+  .tlrow,.tlaxis{grid-template-columns:92px minmax(0,1fr) 40px;gap:8px;font-size:12px}
+  .gov{grid-template-columns:118px minmax(0,1fr) 26px;font-size:12px}
+}
+.lcell{display:inline-flex;align-items:center;gap:6px;justify-content:flex-end}
+/* the safety table becomes cards on a phone */
+.safecards{display:none}
+.scard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.scard[data-open]{cursor:pointer}
+.scard-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.scard-hd b{font-size:15px;margin-right:auto}
+.scard-lt{display:flex;flex-wrap:wrap;gap:6px}
+.scard-lt .lt{font-size:12px;padding:2px 8px 2px 7px}
+@media (max-width:720px){.safe-wide{display:none}.safecards{display:grid;gap:8px}}

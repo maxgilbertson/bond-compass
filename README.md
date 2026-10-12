@@ -2,7 +2,7 @@
 
 A live tracker of the world's government bond markets: 39 countries' yield curves (plus six more with monthly data),
 trader-grade analytics for every maturity, the public finances behind each government, every UK gilt after tax,
-a tested score and a live track record, on one page with eleven tabs.
+a tested score, warning lights on how safe each government is, and a live track record, on one page with twelve tabs.
 
 - **Overview**: the yields the world prices from (US, UK, German, Japanese 10-years), the US curve, French and Italian
   spreads over Germany, bond volatility (MOVE) and US high-yield spreads; a rules-based read of the backdrop
@@ -20,6 +20,13 @@ a tested score and a live track record, on one page with eleven tabs.
   (e.g. rating vs real yield: who pays more than their rating suggests); where the IMF expects debt to go; interest
   as a share of revenue; the debt arithmetic (r − g, the primary balance needed to hold debt steady, the budget gap,
   average cost of existing debt vs today's yields).
+- **Safety**: how safe each government is, with warning lights on up to 17 measures in five groups: debt (level,
+  direction, budget gap), the interest bill (share of revenue now and in 5 years, and what a lasting 1-point rise in
+  rates would add), refinancing (average maturity, share due within a year, financing need, floating or
+  inflation-linked debt), lenders (held abroad, foreign currency, reserves) and the track record (defaults since 1960,
+  inflation, governance, rating). Each light uses the IMF's danger levels where it publishes them; a plain verdict per
+  country; the interest bill over time; how hard and how fast higher rates would hit; defaults since 1960. Daily
+  alerts flag a changed verdict or rating. The lights sit beside the score, not inside it.
 - **Credit & inflation**: US, euro and emerging-market corporate spreads, the spread for each rating from AAA to CCC,
   all-in corporate yields, US TIPS real yields, breakeven inflation and the 5-year, 5-year forward, MOVE history.
 - **Central banks**: 21 policy rates, last move, 1-year and 3-month changes, real policy rates, and what 2-year
@@ -40,7 +47,7 @@ a GitHub issue; bond-maths checks before every publish.
 
 Click any country for its detail panel: a rules-based verdict, what stands out, the score's ingredients, every
 maturity's full analytics, the curve, yield history since 2016 (and spreads vs Treasuries or Bunds, and 2s10s),
-public finances with IMF forecasts, and its ratings and central-bank rate.
+public finances with IMF forecasts, its safety lights, and its ratings and central-bank rate.
 
 **The score** ranks each market's benchmark bond 0–100 against the others: value 60% (real yield 25%, cushion
 against rising yields 20%, cheapness vs its own 3 years 15%) and safety 40% (credit rating 15%, debt 10%, budget gap
@@ -66,14 +73,19 @@ record tab); real yield and the cushion did the work there.
 | UK real yields, implied inflation | Bank of England yield curves (IADB) | every 6 hours |
 | Bond fund prices | Yahoo Finance (fees from providers' pages, `data/etfs.json`) | hourly |
 | Calendar | Central banks' and statistics offices' schedules (`data/calendar.json`) | update by hand yearly |
+| EU governments' debt maturity, share due within a year, floating share | ECB Data Portal, government finance statistics | weekly (monthly data) |
+| Debt securities: due within a year, floating, foreign currency, held abroad | BIS debt securities statistics | weekly (quarterly data) |
+| Average maturity, financing need, share held abroad | IMF Fiscal Monitor statistical tables (`data/fiscal_monitor.json`) | update by hand each April and October |
+| Governance, reserves | World Bank (Worldwide Governance Indicators; reserves in months of imports) | monthly |
+| Defaults since 1960 | Bank of Canada and Bank of England sovereign default database (`data/defaults.json`) | update by hand yearly |
 
 Slow-moving data is cached in `data/cache/` (kept between GitHub runs); if a source is down the last good copy is used.
-`data/seed/` holds a starter copy of the IMF data in case the IMF's site turns away GitHub's servers.
+`data/seed/` holds starter copies (IMF data, and the safety sources) in case a source turns away GitHub's servers.
 
 ## Folders
 
 - `app/`: the code and the page.
-  - `markets.py`: the 33 markets, which maturities each quotes, and the FRED and IMF series.
+  - `markets.py`: the 39 markets, which maturities each quotes, and the FRED and IMF series.
   - `sources.py`: fetching and caching from every source.
   - `bondmath.py`: price, duration, convexity, DV01, curve interpolation, roll-down.
   - `bonds.py`: builds everything the page shows, including the score and the backdrop rules.
@@ -81,11 +93,12 @@ Slow-moving data is cached in `data/cache/` (kept between GitHub runs); if a sou
   - `snapshot.py` + `tracking.py`: the daily record of yields and scores, signal log and practice portfolios.
   - `perf.py` + `backtest.py`: returns rebuilt from yields, and the score tested on the past.
   - `gilts.py`: every UK gilt's yield and after-tax yield. `briefing.py` + `BRIEFING_PROMPT.md`: the weekly briefing.
+  - `safety.py` + `safety_sources.py`: the safety warning lights and their sources.
   - `alerts.py`: the daily alert note. `selftest.py`: bond-maths checks run before every publish.
   - `index.html`, `common.css`, `common.js`: the page.
   - `server.py`: the local web server. `build_static.py`: builds the GitHub Pages copy.
 - `data/`: `history/` (daily yields and scores), `paper/` (practice portfolios), `briefings/`, `gilts.json`,
-  `etfs.json`, `calendar.json`, `ratings.json`, `seed/`.
+  `etfs.json`, `calendar.json`, `ratings.json`, `fiscal_monitor.json`, `defaults.json`, `seed/`.
 - `.github/workflows/`: `deploy.yml` publishes every ~15 minutes (after `selftest.py`); `daily.yml` saves the day's
   record, makes the monthly practice picks and posts alerts; `gilts.yml` fetches gilt prices each weekday afternoon;
   `briefing.yml` gathers the briefing's facts on Saturday mornings (a scheduled Claude task on Max's PC writes it up).

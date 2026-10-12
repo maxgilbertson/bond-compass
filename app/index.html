@@ -33,6 +33,7 @@
   <button type="button" data-view="monitor">Monitor</button>
   <button type="button" data-view="curves">Curves</button>
   <button type="button" data-view="countries">Countries</button>
+  <button type="button" data-view="safety">Safety</button>
   <button type="button" data-view="credit">Credit &amp; inflation</button>
   <button type="button" data-view="banks">Central banks</button>
   <button type="button" data-view="gilts">UK gilts</button>
@@ -68,7 +69,8 @@ const S = {data:null, region:store.get("region","all"), q:"", sort:store.get("so
   tenor:store.get("tenor","bench"), curveSel:store.get("curveSel",["US","GB","DE","JP"]), curveCmp:store.get("curveCmp",["m1","y1"]),
   heat:store.get("heat","level"), ctab:store.get("ctab","slopes"), mapM:store.get("mapM","score"), sx:store.get("sx","safety"), sy:store.get("sy","value"), sgrp:store.get("sgrp","all"),
   credit:store.get("credit","BAMLH0A0HYM2"), infl:store.get("infl","DFII10"), banks:store.get("banks",["US","XM","GB","JP"]),
-  slopeSort:{k:"s2s10",dir:1}, bankSort:{k:"d1y",dir:-1}, sel:null, dtab:"summary"};
+  slopeSort:{k:"s2s10",dir:1}, bankSort:{k:"d1y",dir:-1}, sel:null, dtab:"summary",
+  sfilt:store.get("sfilt","all"), ssort:store.get("ssort","risk"), sall:false, intSel:store.get("intSel",["US","GB","FR","IT","JP"])};
 const rows = () => S.data.rows;
 const byCode = c => rows().find(r=>r.code===c);
 const B = r => r.bonds.find(b=>b.tenor===r.bench);
@@ -170,6 +172,14 @@ const C = {
   r1yGbp:{l:"1y in £",s:"unhedged",g:r=>tr1(r,"y1","gbp"),f:v=>`<b class="num ${cls(v)}">${pct(v,1)}</b>`,t:"Return over a year for a UK investor who didn't hedge the currency."},
   r1yHdg:{l:"1y in £",s:"hedged",g:r=>tr1(r,"y1","hedged"),f:v=>`<span class="num ${cls(v)}">${pct(v,1)}</span>`,t:"Return over a year for a UK investor who hedged the currency back to pounds (approximate)."},
   spark:{l:"Past year",g:r=>null,f:(v,r)=>sparkSVG(r.spark),t:"The benchmark yield over the past year. Green = yields fell (prices rose); red = yields rose."},
+  sverdict:{l:"Safety",s:"warning signs",g:r=>{ const v=safe(r).verdict; return v?VERDICTS.length-1-VERDICTS.indexOf(v):null; },f:(v,r)=>vdChip(safe(r).verdict),
+    t:"How safe the government behind the bonds looks on the Safety tab's warning lights (debt, interest bill, refinancing, lenders, track record). Sorted with the fewest warning signs first."},
+  ...Object.fromEntries([["sintRev5","intRev5"],["sperPoint","perPoint"],["satm","atm"],["sdue","due1y"],["sgfn","gfn"],["sfloat","floating"],["sfx","fx"],["sabroad","abroad"],
+      ["sres","reserves"],["sdef","defaults"],["sinfl","inflation"],["sgov","governance"]].map(([c,k])=>[c,{
+    get l(){ return SHORT[k][0]; }, get s(){ return SHORT[k][1]; },
+    g:r=>k==="defaults"? (hasVal(r,k)? (sv(r,k).last||0) : null) : sv(r,k),
+    f:(v,r)=>hasVal(r,k)? `<span class="lcell" data-tip="${esc(measureTip(r,k))}"><span class="ltdot ${sl(r,k)||"none"}"></span><span class="num">${esc(sfmt(r,k,true))}</span></span>` : "–",
+    get t(){ return ((SMETA().measures||{})[k]||{}).about||""; }}])),
 };
 const COLSETS = {
   key:{label:"Key",cols:["score","d1wS","signal","y","chg","d1m","realY","hedgedGbp","s2s10","rating","debt","spark"]},
@@ -180,6 +190,7 @@ const COLSETS = {
   fiscal:{label:"Public finances",cols:["rating","debt","debt5","balance","primary","interest","intRev","effRate","refi","rg","gap","growth"]},
   returns:{label:"Returns",cols:["y","r3m","rytd","r1y","fx1y","r1yGbp","r1yHdg"]},
   score:{label:"Score parts",cols:["score","value","safety","realY","breakeven","pct3y","rating","debt","gap","intRev"]},
+  safe:{label:"Safety",cols:["sverdict","debt","intRev","sintRev5","sperPoint","satm","sgfn","sabroad","sfx","sdef","sinfl","sgov","rating"]},
 };
 function expectsText(v,short=false){ if(!isNum(v)) return "–";
   const w = v>=40? "rate rises" : v>=15? "a small rise" : v<=-40? "rate cuts" : v<=-15? "a small cut" : "little change";
@@ -194,6 +205,7 @@ function render(){
     <div class="view" data-view="monitor">${monitorHTML()}</div>
     <div class="view" data-view="curves">${curvesHTML()}</div>
     <div class="view" data-view="countries">${countriesHTML()}</div>
+    <div class="view" data-view="safety">${safetyHTML()}</div>
     <div class="view" data-view="credit">${creditHTML(d)}</div>
     <div class="view" data-view="banks">${banksHTML()}</div>
     <div class="view" data-view="gilts">${giltsHTML(d)}</div>
@@ -450,6 +462,12 @@ const MAPM = {
   gap:{l:"Budget gap, % of GDP",g:r=>r.fiscal.gap,c:v=>divColor(v,0,4,true),f:v=>pp(v,1,true),lo:"+4 (debt rising)",hi:"−4 (debt falling)"},
   intRev:{l:"Interest, % of revenue",g:r=>r.fiscal.intRev,c:v=>divColor(v,8,12,true),f:v=>Math.round(v)+"%",lo:"20%+",hi:"0%"},
   rating:{l:"Credit rating",g:r=>r.rating&&r.rating.avg,c:v=>divColor(v,14,7),f:v=>"",lo:"B",hi:"AAA"},
+  sverdict:{l:"Safety: warning signs",g:r=>{ const v=safe(r).verdict; return v?VERDICTS.length-1-VERDICTS.indexOf(v):null; },c:v=>divColor(v,1.5,1.5),f:v=>VERDICTS[VERDICTS.length-1-v]||"",lo:"High risk",hi:"Few warning signs"},
+  perPoint:{l:"Cost of a 1-point rise in rates, % of revenue",g:r=>safe(r).creditor?null:sv(r,"perPoint"),c:v=>divColor(v,3,3,true),f:v=>"+"+v.toFixed(1)+"% of revenue",lo:"+6%",hi:"0%"},
+  atm:{l:"Average maturity of government debt",g:r=>sv(r,"atm"),c:v=>divColor(v,6,5),f:v=>v.toFixed(1)+" years",lo:"1 year",hi:"11+ years"},
+  abroad:{l:"Government debt held abroad, %",g:r=>sv(r,"abroad"),c:v=>divColor(v,30,30,true),f:v=>Math.round(v)+"%",lo:"60%+",hi:"0%"},
+  governance:{l:"Governance (World Bank), 0–100",g:r=>sv(r,"governance"),c:v=>divColor(v,60,35),f:v=>Math.round(v)+" of 100",lo:"25",hi:"95"},
+  infl10:{l:"Inflation over the last 10 years",g:r=>sv(r,"inflation"),c:v=>divColor(v,4,4,true),f:v=>v.toFixed(1)+"% a year",lo:"8%+",hi:"0%"},
 };
 const SM = {  // scatter axes
   safety:{l:"Safety score (0–100)",g:r=>r.m.safety,f:v=>v.toFixed(0)},
@@ -469,18 +487,24 @@ const SM = {  // scatter axes
   infl:{l:"Inflation forecast, 5y avg (%)",g:r=>r.fiscal.inflFwd,f:v=>v.toFixed(1)},
   d1y:{l:"Yield change over 1 year (bp)",g:r=>B(r).d1y,f:v=>v.toFixed(0)},
   r1yGbp:{l:"1-year return in £, unhedged (%)",g:r=>{const v=tr1(r,"y1","gbp"); return v==null?null:v*100;},f:v=>v.toFixed(0)},
+  perPoint:{l:"Cost of a 1-point rise in rates (% of revenue)",g:r=>safe(r).creditor?null:sv(r,"perPoint"),f:v=>v.toFixed(1)},
+  intRev5:{l:"Interest bill in 5 years, IMF (% of revenue)",g:r=>sv(r,"intRev5"),f:v=>v.toFixed(0)},
+  atm:{l:"Average maturity of debt (years)",g:r=>sv(r,"atm"),f:v=>v.toFixed(1)},
+  abroad:{l:"Debt held abroad (%)",g:r=>sv(r,"abroad"),f:v=>v.toFixed(0)},
+  governance:{l:"Governance, World Bank (0–100)",g:r=>sv(r,"governance"),f:v=>v.toFixed(0)},
+  infl10:{l:"Inflation, last 10 years (% a year)",g:r=>sv(r,"inflation"),f:v=>v.toFixed(1)},
 };
 const PRESETS = [["safety","value","Value vs safety"],["rating","realY","Rating vs real yield"],["rating","vsUS","Rating vs spread"],["debt","y","Debt vs yield"],
-  ["debt","debtChg","Debt today vs where it's heading"],["infl","y","Inflation vs yield"],["rg","gap","r − g vs budget gap"]];
+  ["debt","debtChg","Debt today vs where it's heading"],["infl","y","Inflation vs yield"],["rg","gap","r − g vs budget gap"],["governance","y","Governance vs yield"]];
 function countriesHTML(){
   return `<section>${secHead({eyebrow:"World map",title:"Bond markets by country",lead:"Colour each country by a number. Click a country for its detail.",
-      right:`<select id="mapSel" aria-label="Colour the map by">${Object.entries(MAPM).map(([k,m])=>`<option value="${k}" ${S.mapM===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>`})}
+      right:`<select id="mapSel" aria-label="Colour the map by">${Object.entries(MAPM).filter(([k,m])=>rows().some(r=>isNum(m.g(r)))).map(([k,m])=>`<option value="${k}" ${S.mapM===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>`})}
     <div class="card mapbox"><div id="map"></div><div class="legend-row" id="mapLegend"></div></div></section>
   <section>${secHead({eyebrow:"Relative value",title:"Who pays enough for the risk?",lead:"Plot any two numbers against each other. The dashed line is the best fit across the markets shown: markets above it have a higher value on the up-axis than their peers with a similar value along the bottom."})}
     <div class="card chartbox"><div class="row" style="gap:8px 14px">
-      <div class="controls">${PRESETS.map(([x,y,l])=>`<button type="button" class="tab" data-preset="${x},${y}" aria-pressed="${S.sx===x&&S.sy===y}">${esc(l)}</button>`).join("")}</div></div>
-      <div class="row"><span class="seg-lab">Across</span><select id="sxSel" aria-label="Horizontal axis">${Object.entries(SM).map(([k,m])=>`<option value="${k}" ${S.sx===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>
-        <span class="seg-lab">Up</span><select id="sySel" aria-label="Vertical axis">${Object.entries(SM).map(([k,m])=>`<option value="${k}" ${S.sy===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>
+      <div class="controls">${PRESETS.filter(([x,y])=>[x,y].every(k=>rows().some(r=>isNum(SM[k].g(r))))).map(([x,y,l])=>`<button type="button" class="tab" data-preset="${x},${y}" aria-pressed="${S.sx===x&&S.sy===y}">${esc(l)}</button>`).join("")}</div></div>
+      <div class="row"><span class="seg-lab">Across</span><select id="sxSel" aria-label="Horizontal axis">${Object.entries(SM).filter(([k,m])=>rows().some(r=>isNum(m.g(r)))).map(([k,m])=>`<option value="${k}" ${S.sx===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>
+        <span class="seg-lab">Up</span><select id="sySel" aria-label="Vertical axis">${Object.entries(SM).filter(([k,m])=>rows().some(r=>isNum(m.g(r)))).map(([k,m])=>`<option value="${k}" ${S.sy===k?"selected":""}>${esc(m.l)}</option>`).join("")}</select>
         ${seg("sgrpSeg",[["all","All"],["dm","Developed"],["em","Emerging"],["ig","Investment grade"]],S.sgrp,"Markets")}</div>
       <div class="two wide" style="align-items:start"><div class="scatter" id="scatter"></div><div id="resid"></div></div></div></section>
   <section class="two">
@@ -497,17 +521,241 @@ function countriesHTML(){
       <p><b>Budget gap</b> = needed minus the primary balance the IMF expects this year. Positive = debt on course to keep rising at today's yields. It's a rough guide: governments borrow at many maturities, and the average cost of existing debt (<b>Avg cost</b>) is usually below today's yields, so the full effect arrives slowly as debt is refinanced (<b>Refi gap</b>).</p>`,"How the sums work")}</section>
   ${monthlyHTML(S.data)}`;
 }
+/* ---------- safety: how safe is the government behind the bonds? */
+const LT_WORD = {low:"Low risk",some:"Some risk",high:"High risk"};
+const VERDICTS = ["High risk","Several warning signs","Some warning signs","Few warning signs"];
+const VD_CLS = {"High risk":"v4","Several warning signs":"v3","Some warning signs":"v2","Few warning signs":"v1"};
+const SMETA = () => (S.data&&S.data.safetyMeta)||{pillars:[],measures:{}};
+const safe = r => r.safety||{};
+const sv = (r,k) => (safe(r).values||{})[k];
+const sl = (r,k) => (safe(r).lights||{})[k];
+const lt = (l,txt,tip="") => `<span class="lt ${l||"none"}"${tip?` data-tip="${esc(tip)}"`:""}>${txt}</span>`;
+const vdChip = v => v? `<span class="vd ${VD_CLS[v]}">${esc(v)}</span>` : `<span class="vd">Not enough data</span>`;
+const pillarMeasures = p => Object.entries(SMETA().measures).filter(([,m])=>m.pillar===p).map(([k])=>k);
+// each measure written in full and short (for table cells)
+const SFMT = {
+  debt:[v=>Math.round(v)+"% of GDP",v=>Math.round(v)+"%"], debtChg:[v=>`${v>0?"+":""}${Math.round(v)} points of GDP`,v=>(v>0?"+":"")+Math.round(v)],
+  gap:[v=>`${v>0?"+":""}${v.toFixed(1)}% of GDP`,v=>(v>0?"+":"")+v.toFixed(1)], intRev:[v=>Math.round(v)+"% of revenue",v=>Math.round(v)+"%"],
+  intRev5:[v=>Math.round(v)+"% of revenue",v=>Math.round(v)+"%"], perPoint:[v=>`+${v.toFixed(1)}% of revenue`,v=>"+"+v.toFixed(1)],
+  atm:[v=>v.toFixed(1)+" years",v=>v.toFixed(1)], due1y:[v=>Math.round(v)+"% of its bonds",v=>Math.round(v)+"%"], gfn:[v=>Math.round(v)+"% of GDP",v=>Math.round(v)+"%"],
+  floating:[v=>Math.round(v)+"% of its bonds",v=>Math.round(v)+"%"], fx:[v=>Math.round(v)+"% of its bonds",v=>Math.round(v)+"%"], abroad:[v=>Math.round(v)+"% of debt",v=>Math.round(v)+"%"],
+  reserves:[v=>v.toFixed(1)+" months of imports",v=>v.toFixed(1)], inflation:[v=>v.toFixed(1)+"% a year",v=>v.toFixed(1)+"%"], governance:[v=>Math.round(v)+" out of 100",v=>String(Math.round(v))],
+};
+const SHORT = {debt:["Debt","% GDP"],debtChg:["Next 5 yrs","pts of GDP"],gap:["Budget gap","% GDP"],intRev:["Interest","% revenue"],intRev5:["In 5 yrs","% revenue"],
+  perPoint:["+1 pt rates","% revenue"],atm:["Avg maturity","years"],due1y:["Due in 1 yr","% bonds"],gfn:["To borrow","% GDP"],floating:["Floating/linked","% bonds"],
+  fx:["Foreign ccy","% bonds"],abroad:["Held abroad","% debt"],reserves:["Reserves","months"],defaults:["Last default","since 1960"],inflation:["Inflation","10-yr avg"],
+  governance:["Governance","0–100"],rating:["Rating","average"]};
+function sfmt(r,k,short=false){ const v=sv(r,k);
+  if(k==="defaults") return !v||v.years==null?"–":v.last?(short?String(v.last):`last in default in ${v.last}`):(short?"None":"none on bonds or bank loans since 1960");
+  if(k==="rating") return r.rating?r.rating.label:"–";
+  const atLeast=k==="due1y"&&((safe(r).profile||{}).due1yMin);  // bills only: a minimum
+  return isNum(v)&&SFMT[k]? (atLeast?(short?"≥":"at least "):"")+SFMT[k][short?1:0](v) : "–"; }
+const hasVal = (r,k) => k==="defaults"? !!(sv(r,k)&&sv(r,k).years!=null) : k==="rating"? !!r.rating : isNum(sv(r,k));
+// the rule behind a measure's light, in words: for one group of economies (tooltips) or for both (the Guide)
+function coreRule(m,th){ const pc=m.unit.startsWith("%"), u=pc?"%":"", [a,b]=th;
+  return (m.worse==="higher"? `low under ${a}${u} · some ${a}–${b}${u} · high ${b}${u} or more` : `low ${a}${u} or more · some ${b}–${a}${u} · high under ${b}${u}`)+(pc?"":` (${m.unit})`); }
+const sameRule = m => !!(m.dm&&m.em&&String(m.dm)===String(m.em));
+function thText(k,adv){ const m=SMETA().measures[k]; if(!m) return "";
+  if(k==="defaults") return "Risk: low if no default since 1960 · some if the last one was before 2000 · high if in default at any time since 2000. Bond Compass's own thresholds.";
+  if(k==="rating") return "Risk: low at A− or better · some from BBB− to BBB+ · high below investment grade.";
+  const th=adv?m.dm:m.em; if(!th) return `Not scored for ${adv?"advanced":"emerging"} economies.`;
+  return `Risk: ${coreRule(m,th)}${sameRule(m)?"":` (${adv?"advanced":"emerging"} economies, the IMF's grouping)`}. ${m.by==="imf"?"The IMF's benchmark.":"Bond Compass's own thresholds."}`; }
+function ruleText(k){ const m=SMETA().measures[k]; if(k==="defaults"||k==="rating") return thText(k,true).replace(/^Risk: /,"");
+  const parts=sameRule(m)? [coreRule(m,m.dm)] : [m.dm&&`advanced economies: ${coreRule(m,m.dm)}`,m.em&&`emerging: ${coreRule(m,m.em)}`].filter(Boolean);
+  return `${cap(parts.join("; "))}. ${m.by==="imf"?"IMF benchmark.":"Bond Compass's own."}`; }
+function measureTip(r,k){ const m=SMETA().measures[k]; if(!m) return "";
+  return `<b>${esc(m.label)}: ${esc(sfmt(r,k))}</b>${sl(r,k)?` · ${LT_WORD[sl(r,k)]}`:""}<br>${esc(m.about)}<br><span class="muted">${esc(thText(k,safe(r).adv))}</span>`; }
+function pillarHead(r,p){ const v=k=>sv(r,k), n=k=>isNum(v(k));
+  if(p==="debt") return n("debt")? `${Math.round(v("debt"))}% of GDP${n("debtChg")&&v("debtChg")>=3?", rising":n("debtChg")&&v("debtChg")<=-3?", falling":""}` : "–";
+  if(p==="bill") return n("intRev")? `${Math.round(v("intRev"))}% of revenue` : n("perPoint")? `+${v("perPoint").toFixed(1)}% per point` : "–";
+  if(p==="refi") return n("atm")? `${v("atm").toFixed(1)} years on average` : n("gfn")? `${Math.round(v("gfn"))}% of GDP to borrow` : n("due1y")? `${Math.round(v("due1y"))}% due in a year` : "–";
+  if(p==="lenders") return n("abroad")? `${Math.round(v("abroad"))}% held abroad` : n("fx")? `${Math.round(v("fx"))}% foreign currency` : "–";
+  const d=v("defaults"); return `${r.rating?r.rating.label:"Not rated"}${d&&d.years!=null?(d.last?` · default ${d.last}`:" · no default"):""}`; }
+function pillarTip(r,p){ const P=SMETA().pillars.find(x=>x.key===p), l=(safe(r).pillars||{})[p];
+  return `<b>${esc(P.label)}: ${l?LT_WORD[l]:"no data"}</b><br>${esc(P.about)}<br>`+pillarMeasures(p).filter(k=>hasVal(r,k))
+    .map(k=>`<span class="ltdot ${sl(r,k)||"none"}"></span> ${esc(SMETA().measures[k].label)}: ${esc(sfmt(r,k))}`).join("<br>"); }
+// plain words for each measure, for the panel's summary
+const SAY = {
+  debt:r=>`debt of ${sfmt(r,"debt")}`, debtChg:r=>sv(r,"debtChg")>0?`debt set to rise ${Math.round(sv(r,"debtChg"))} points of GDP in 5 years`:`debt set to fall ${Math.abs(Math.round(sv(r,"debtChg")))} points of GDP in 5 years`,
+  gap:r=>sv(r,"gap")>0?`a budget ${sv(r,"gap").toFixed(1)}% of GDP short of holding debt steady`:`a budget that holds debt steady at today's yields`,
+  intRev:r=>`interest taking ${Math.round(sv(r,"intRev"))}% of revenue`, intRev5:r=>`interest heading for ${Math.round(sv(r,"intRev5"))}% of revenue`,
+  perPoint:r=>`each 1-point rise in rates eventually costing ${sv(r,"perPoint").toFixed(1)}% of revenue`,
+  atm:r=>sv(r,"atm")<5?`short-dated debt (${sv(r,"atm").toFixed(1)} years on average)`:`long-dated debt (${sv(r,"atm").toFixed(1)} years on average)`,
+  due1y:r=>`${Math.round(sv(r,"due1y"))}% of its bonds due within a year`, gfn:r=>`${Math.round(sv(r,"gfn"))}% of GDP to borrow this year`,
+  floating:r=>`${Math.round(sv(r,"floating"))}% of its bonds paying floating or inflation-linked rates`,
+  fx:r=>sv(r,"fx")<5?`borrowing almost only in its own currency`:`${Math.round(sv(r,"fx"))}% of its bonds in foreign currency`,
+  abroad:r=>`${Math.round(sv(r,"abroad"))}% of debt held abroad`, reserves:r=>`reserves worth ${sv(r,"reserves").toFixed(1)} months of imports`,
+  defaults:r=>sv(r,"defaults").last?`a default as recently as ${sv(r,"defaults").last}`:"no default on its bonds or bank loans since 1960",
+  inflation:r=>`inflation averaging ${sv(r,"inflation").toFixed(1)}% over 10 years`,
+  governance:r=>sv(r,"governance")>=75?`strong institutions (governance ${Math.round(sv(r,"governance"))}/100)`:`weaker institutions (governance ${Math.round(sv(r,"governance"))}/100)`,
+  rating:r=>`a credit rating of ${r.rating.label}`,
+};
+const GOOD_ORDER = ["defaults","fx","rating","governance","atm","inflation","intRev","debt","abroad","gfn","gap","debtChg","perPoint","due1y","floating","reserves","intRev5"];
+function safetySummary(r){ const s=safe(r); if(!s.lights) return "";
+  const pick=l=>GOOD_ORDER.filter(k=>s.lights[k]===l&&SAY[k]&&hasVal(r,k));
+  const bad=pick("high"), mid=pick("some"), good=pick("low");
+  const watch=[...bad,...mid].slice(0,3).map(k=>SAY[k](r)), ok=good.slice(0,3).map(k=>SAY[k](r));
+  return `${watch.length?`Watch: ${watch.join("; ")}.`:"No warning lights."}${ok.length?` In its favour: ${ok.join("; ")}.`:""}`; }
+
+const VRANK = r => { const v=safe(r).verdict; return v? VERDICTS.indexOf(v) : 9; };
+const riskAvg = r => { const ls=Object.values(safe(r).lights||{}).filter(Boolean); return ls.length? ls.reduce((a,l)=>a+(l==="high"?2:l==="some"?1:0),0)/ls.length : 0; };
+// the six markets with monthly yields only have no detail panel, but their governments get the same lights
+const monthlyRows = () => (S.data.monthly||[]).filter(m=>m.safety&&m.safety.values).map(m=>({...m,monthly:true,dm:!!m.safety.adv}));
+function safetyList(){ const list=[...rows(),...monthlyRows()].filter(r=>S.sfilt==="all"||(S.sfilt==="dm"?r.dm:!r.dm));
+  const dir=S.ssort==="safe"?-1:1;
+  return list.sort((a,b)=>(VRANK(a)===9)-(VRANK(b)===9) || dir*((VRANK(a)-VRANK(b))||(riskAvg(b)-riskAvg(a))) || a.name.localeCompare(b.name)); }
+function safetyTable(list){ const P=SMETA().pillars.filter(p=>list.some(r=>(safe(r).pillars||{})[p.key]));  // no empty columns
+  return `<table class="safetab"><thead><tr><th class="l sticky">Country</th><th class="l">Verdict</th>${P.map(p=>`<th class="l" title="${esc(p.about)}">${esc(p.label)}</th>`).join("")}</tr></thead>
+    <tbody>${list.map(r=>`<tr ${r.monthly?'style="cursor:default"':`data-open="${r.code}" data-dtab="safety"`}><td class="l sticky"><b>${esc(r.name)}</b><small class="muted" style="display:block;font-size:11px">${r.dm?"Developed":"Emerging"}${r.euro?" · euro":""}${r.monthly?" · monthly yields":""}</small></td>
+      <td class="l">${vdChip(safe(r).verdict)}</td>${P.map(p=>`<td class="l">${lt((safe(r).pillars||{})[p.key],esc(pillarHead(r,p.key)),pillarTip(r,p.key))}</td>`).join("")}</tr>`).join("")}</tbody></table>`; }
+// on a phone: one card per country with its verdict and the five lights, so nothing needs scrolling sideways
+function safetyCards(list){ const P=SMETA().pillars.filter(p=>list.some(r=>(safe(r).pillars||{})[p.key]));
+  return list.map(r=>`<div class="scard" ${r.monthly?"":`data-open="${r.code}" data-dtab="safety" role="button" tabindex="0"`}><div class="scard-hd"><b>${esc(r.name)}</b>${vdChip(safe(r).verdict)}</div>
+    <div class="scard-lt">${P.map(p=>lt((safe(r).pillars||{})[p.key],esc(p.label),pillarTip(r,p.key))).join("")}</div></div>`).join(""); }
+function safetyNumbers(list){ const M=SMETA().measures, P=SMETA().pillars;
+  const keys=P.flatMap(p=>pillarMeasures(p.key)).filter(k=>list.some(r=>hasVal(r,k)));
+  return `<table class="heat safeheat"><thead><tr><th class="l sticky" rowspan="2">Country</th>${P.map(p=>{ const n=pillarMeasures(p.key).filter(k=>keys.includes(k)).length; return n?`<th colspan="${n}" class="grp">${esc(p.label)}</th>`:""; }).join("")}</tr>
+    <tr>${keys.map(k=>`<th title="${esc(M[k].about)}">${esc(SHORT[k][0])}<small>${esc(SHORT[k][1])}</small></th>`).join("")}</tr></thead>
+    <tbody>${list.map(r=>`<tr ${r.monthly?'style="cursor:default"':`data-open="${r.code}" data-dtab="safety"`}><td class="l sticky"><b>${esc(r.name)}</b></td>${keys.map(k=>`<td class="cell lc ${sl(r,k)||"none"}" data-tip="${esc(measureTip(r,k))}">${esc(sfmt(r,k,true))}</td>`).join("")}</tr>`).join("")}</tbody></table>`; }
+
+// lenders: two simple bar charts side by side, the share of debt held abroad and the share owed in foreign currency
+const LT_FILL = {low:"var(--dpos)",some:"var(--s4)",high:"var(--dneg)"};
+function lendersHTML(){
+  const bars=(k,fmt)=>rows().filter(r=>isNum(sv(r,k))).sort((a,b)=>sv(b,k)-sv(a,k))
+    .map(r=>({label:r.name,v:sv(r,k),key:r.code,color:LT_FILL[sl(r,k)]||"color-mix(in oklab,var(--faint) 55%,var(--surface2))"}));
+  const ab=bars("abroad"), fx=bars("fx").filter(x=>x.v>=1);
+  if(ab.length<5) return "";
+  return `<section class="two">
+    <div class="card panel">${secHead({eyebrow:"Lenders",title:"Debt held abroad",h:"h3",lead:"Share of government debt held by investors outside the country. In emerging markets they can leave fast; grey = advanced economies, where it isn't scored."})}
+      <div class="bars">${barsSVG(ab,{fmt:v=>Math.round(v)+"%",rowH:22})}</div></div>
+    <div class="card panel">${secHead({eyebrow:"Currency",title:"Bonds owed in foreign currency",h:"h3",lead:"These can't be inflated away, and a falling currency makes them bigger. Markets under 1% are left out."})}
+      <div class="bars">${barsSVG(fx,{fmt:v=>Math.round(v)+"%",rowH:22})}</div></div></section>`; }
+function defaultsHTML(){ const list=rows().filter(r=>{ const d=sv(r,"defaults"); return d&&(d.episodes||[]).length; }).sort((a,b)=>(sv(b,"defaults").years-sv(a,"defaults").years)||a.name.localeCompare(b.name));
+  const none=rows().filter(r=>{ const d=sv(r,"defaults"); return d&&d.years===0; }).map(r=>r.name).sort();
+  if(!list.length&&!none.length) return "";
+  const y0=1960, y1=new Date().getUTCFullYear()+1, pos=y=>((y-y0)/(y1-y0)*100).toFixed(2);
+  return `<section>${secHead({eyebrow:"Track record",title:"Which governments have defaulted since 1960",lead:"Red years: the government was in default on its bonds, bank loans or local-currency debt (US$100m or more). Hover for what happened."})}
+    <div class="card panel"><div class="tl">${list.map(r=>{ const d=sv(r,"defaults"); return `<div class="tlrow" data-open="${r.code}" data-dtab="safety" role="button" tabindex="0"><span class="tlname">${esc(r.name)}</span>
+      <div class="tltrack">${d.episodes.map(e=>`<i style="left:${pos(e.from)}%;width:${((e.to-e.from+1)/(y1-y0)*100).toFixed(2)}%" data-tip="${esc(`<b>${esc(r.name)}, ${e.from}${e.to>e.from?"–"+e.to:""}</b>${e.what?"<br>"+esc(e.what):""}`)}"></i>`).join("")}</div>
+      <span class="tlval">${d.years} yr${d.years===1?"":"s"}</span></div>`; }).join("")}
+      <div class="tlaxis"><span></span><div>${[1960,1980,2000,2020].map(y=>`<b style="left:${pos(y)}%">${y}</b>`).join("")}</div><span></span></div></div>
+    ${none.length?`<p class="note"><b>No such default since 1960:</b> ${esc(none.join(", "))}.</p>`:""}
+    <p class="note">${esc((S.data.safetySources||{}).defaults||"Bank of Canada and Bank of England sovereign default database.")}</p></div></section>`; }
+
+function intChips(){ const opts=rows().filter(r=>(r.fiscal.intPath||[]).length).sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="controls" id="intChips">${S.intSel.map((c,i)=>{ const r=byCode(c); return r?`<span class="tag" style="border-color:var(--s${i+1})"><i class="sw" style="background:var(--s${i+1});margin:0"></i>${esc(r.name)} <button type="button" class="btn" data-irm="${c}" style="padding:0 6px;font-size:12px;border:0" aria-label="Remove ${esc(r.name)}">×</button></span>`:""; }).join("")}
+    ${S.intSel.length<5?`<select id="intAdd" aria-label="Add a country"><option value="">+ Add a country…</option>${opts.filter(r=>!S.intSel.includes(r.code)).map(r=>`<option value="${r.code}">${esc(r.name)}</option>`).join("")}</select>`:""}</div>`; }
+const yearTs = y => Date.UTC(y,6,1)/1000;
+// interest as a share of revenue: actual years solid, IMF forecasts dashed
+function intSeries(r,yrs,color,cut){ const m=new Map((r.fiscal.intPath||[]).map(p=>[p[0],p[2]]));
+  return [{v:yrs.map(y=>y<=cut&&m.has(y)?m.get(y):null),color,name:r.name,w:2.2},{v:yrs.map(y=>y>=cut&&m.has(y)?m.get(y):null),color,name:`${r.name} (IMF forecast)`,dash:"6 4",w:2.2}]; }
+function drawIntChart(){ const el=$("#intChart"); if(!el) return;
+  const sel=S.intSel.map(byCode).filter(Boolean); if(!sel.length){ el.innerHTML=""; return; }
+  const yrs=[...new Set(sel.flatMap(r=>(r.fiscal.intPath||[]).map(p=>p[0])))].sort((a,b)=>a-b), cut=sel[0].fiscal.year-1;
+  lineChart(el,{t:yrs.map(yearTs),series:sel.flatMap((r,i)=>intSeries(r,yrs,`var(--s${i+1})`,cut)),h:280,fmt:v=>v.toFixed(0)+"%",baseline:0});
+  $("#intLeg").innerHTML=sel.map((r,i)=>`<span class="key"><i style="background:var(--s${i+1})"></i>${esc(r.name)}: ${isNum(sv(r,"intRev"))?`<b>${Math.round(sv(r,"intRev"))}%</b> now`:"–"}${isNum(sv(r,"intRev5"))?`, ${Math.round(sv(r,"intRev5"))}% in ${r.fiscal.year+5}`:""}</span>`).join("")
+    +`<span class="key"><i class="dash" style="color:var(--muted)"></i>IMF forecast</span>`; }
+function expQuad(useAtm){ return (X,Y,{L,R,T,B,W,H})=>{
+  const cx=Math.max(L,Math.min(W-R,X(useAtm?7:20))), cy=Math.max(T,Math.min(H-B,Y(3))), two=W<560;
+  const lab=(x,y,a,t1,t2,up)=>`<text x="${x}" y="${y}" text-anchor="${a}" font-size="11.5" font-weight="600" fill="var(--muted)" letter-spacing=".04em">${two?`<tspan x="${x}" dy="${up?-13:0}">${t1}</tspan><tspan x="${x}" dy="13">${t2}</tspan>`:`${t1}, ${t2}`}</text>`;
+  const fx=useAtm? L : cx, fw=useAtm? cx-L : W-R-cx;  // the "fast" side: short maturities, or a lot due soon
+  const [lf,rf]=useAtm? [L+6,W-R-6] : [W-R-6,L+6], [la,ra]=useAtm? ["start","end"] : ["end","start"];
+  return `<rect x="${fx}" y="${T}" width="${fw}" height="${cy-T}" fill="var(--neg)" fill-opacity=".07"/>
+    <line x1="${L}" x2="${W-R}" y1="${cy}" y2="${cy}" stroke="var(--line)" stroke-dasharray="4 4"/><line x1="${cx}" x2="${cx}" y1="${T}" y2="${H-B}" stroke="var(--line)" stroke-dasharray="4 4"/>
+    ${lab(lf,T+14,la,"BIG HIT","ARRIVES FAST")}${lab(rf,T+14,ra,"BIG HIT","ARRIVES SLOWLY")}
+    ${lab(lf,H-B-8,la,"SMALL HIT","ARRIVES FAST",true)}${lab(rf,H-B-8,ra,"SMALL HIT","ARRIVES SLOWLY",true)}`; }; }
+function drawExposure(){ const el=$("#expScatter"); if(!el) return;
+  const useAtm=rows().filter(r=>isNum(sv(r,"atm"))).length>=10, xk=useAtm?"atm":"due1y";
+  const pts=rows().filter(r=>!safe(r).creditor).map(r=>({x:sv(r,xk),y:sv(r,"perPoint"),label:r.code,key:r.code,color:r.dm?"var(--s1)":"var(--s2)",
+    tip:`<b>${esc(r.name)}</b><br>A lasting 1-point rise in rates would eventually cost ${esc(sfmt(r,"perPoint"))} a year<br>${useAtm?`Debt lasts ${esc(sfmt(r,"atm"))} on average`:`Due within a year: ${esc(sfmt(r,"due1y"))}`}`}));
+  scatterChart(el,{pts,xlab:useAtm?"Average years until its debt is refinanced":"Share of its bonds due within a year (%)",ylab:"Cost of a 1-point rise (% of revenue)",
+    xfmt:v=>v.toFixed(0),yfmt:v=>v.toFixed(0),fit:false,quad:expQuad(useAtm),h:380,zeroY:true}); }
+
+function safetyHTML(){
+  const P=SMETA().pillars; if(!P.length) return `<p class="muted">The safety data isn't available right now.</p>`;
+  const list=safetyList(), N=12, shown=S.sall?list:list.slice(0,N);
+  const everyone=[...rows(),...monthlyRows()], counts=VERDICTS.map(v=>[v,everyone.filter(r=>safe(r).verdict===v).length]).filter(([,n])=>n);
+  const M=SMETA().measures;
+  return `<section>${secHead({eyebrow:"Government safety",title:"How safe is each government?",lead:"Warning lights on what has pushed governments into trouble before. Click a country for the detail."})}
+    <div class="vdsum">${counts.map(([v,n])=>`<span>${vdChip(v)} <b class="num">${n}</b></span>`).join("")}</div>
+    <div class="row" style="gap:8px 14px;margin:14px 0 10px;display:flex;flex-wrap:wrap;align-items:center">${seg("sfSeg",[["all","All"],["dm","Developed"],["em","Emerging"]],S.sfilt,"Markets")}${seg("ssSeg",[["risk","Most warning signs"],["safe","Fewest"]],S.ssort,"First")}</div>
+    <div class="tablebox safe-wide" id="safeTable">${safetyTable(shown)}</div><div class="safecards">${safetyCards(shown)}</div>
+    ${list.length>N?`<button class="btn" id="safeAll" type="button" style="margin-top:10px">${S.sall?"Show fewer":`Show all ${list.length}`}</button>`:""}
+    ${more("safe-how",`<p>Each country gets a light on up to ${Object.keys(M).length} measures, grouped into five: <b>debt</b>, the <b>interest bill</b>, <b>refinancing</b> (how fast higher rates bite), <b>lenders</b> (who could pull out) and the <b>track record</b>. Any red measure turns its group at least amber; the verdict adds up the groups' lights. The Guide has the exact rules.</p>
+      <p>Where the IMF publishes a danger level (its framework for judging the debts of countries that borrow in markets), the lights use it; the rest are Bond Compass's own round numbers. Hover any light for the exact rule. Developed and emerging markets get different thresholds where the IMF uses different ones.</p>
+      <p>The lights sit beside the score, not inside it: the score's safety half already counts the rating, debt, budget gap and interest bill.</p>`,"How the lights work")}
+    ${fold("safe-nums","All the numbers <small>every measure, with its light</small>",`<div class="tablebox">${safetyNumbers(list)}</div><p class="note">Hover a cell for what it means and the rule behind its colour. A blank means no data.</p>`)}
+  </section>
+  <section>${secHead({eyebrow:"Interest bills",title:"How much of each government's income goes on interest",lead:"Net interest as a share of all government revenue, with the IMF's forecasts dashed. Pick up to five countries."})}
+    <div class="card chartbox"><div class="row">${intChips()}</div><div id="intChart"></div><div class="legend-row" id="intLeg"></div></div></section>
+  ${rows().filter(r=>isNum(sv(r,"perPoint"))&&(isNum(sv(r,"atm"))||isNum(sv(r,"due1y")))).length>=8?`<section>${secHead({eyebrow:"Exposure to higher rates",title:"How hard, and how fast, higher rates would hit",
+      lead:rows().filter(r=>isNum(sv(r,"atm"))).length>=10?"Up: how much a lasting 1-point rise in interest rates would add to the interest bill once all debt is refinanced. Left: how soon that happens (shorter debt reprices sooner).":"Up: how much a lasting 1-point rise in interest rates would add to the interest bill once all debt is refinanced. Right: how much of it reprices within a year."})}
+    <div class="card chartbox"><div class="scatter" id="expScatter"></div>
+      <div class="legend-row"><span class="key dotk"><i style="background:var(--s1)"></i>Developed</span><span class="key dotk"><i style="background:var(--s2)"></i>Emerging</span><span class="muted" style="font-size:12.5px">Governments with more assets than debt are left out</span></div></div></section>`:""}
+  ${lendersHTML()}
+  ${defaultsHTML()}`;
+}
+function drawSafety(){ drawIntChart(); drawExposure(); }
+function safetyGuide(d){ const P=SMETA().pillars, M=SMETA().measures; if(!P.length) return "";
+  const src=d.safetySources||{};
+  return fold("g-safety","Government safety <small>the warning lights, their rules and sources</small>",`
+    <p>The <a href="#safety">Safety</a> tab gives each government a light on up to ${Object.keys(M).length} measures: ${lt("low","Low risk")} ${lt("some","Some risk")} ${lt("high","High risk")}. The shapes differ as well as the colours. A group turns amber if any of its measures is red (or they average half a point or more, scoring red 2, amber 1) and red if two are red (or they average 1.5). The verdict adds up the five groups, red 2 points and amber 1, out of 10: <b>High risk</b> at 7 or more, or 6 with two red groups; <b>Several warning signs</b> at 5, or with two red groups, or one red group and 4 points; <b>Some warning signs</b> at 2 or with any red group; otherwise <b>Few warning signs</b>. Missing data is left out (the points are scaled up), and a verdict needs at least three groups.</p>
+    <p>Where the IMF publishes a danger level (its framework for judging the debts of countries that borrow in markets), the lights use it, with its separate levels for advanced and emerging economies. The other thresholds are Bond Compass's own round numbers. A government with more financial assets than debt (Norway, Singapore) isn't marked down for its gross debt. None of this feeds the score.</p>
+    <table class="comp"><thead><tr><th class="l">Measure</th><th class="l">What it means</th><th class="l">Rule</th></tr></thead><tbody>
+    ${P.map(p=>`<tr><td class="l" colspan="3" style="background:var(--surface2)"><b>${esc(p.label)}</b> <small class="muted">${esc(p.about)}</small></td></tr>`
+      +pillarMeasures(p.key).map(k=>`<tr><td class="l"><b>${esc(M[k].label)}</b></td><td class="l">${esc(M[k].about)}</td><td class="l">${esc(ruleText(k))}</td></tr>`).join("")).join("")}</tbody></table>
+    ${Object.keys(src).length?`<p style="margin-bottom:4px"><b>Sources</b></p><ul style="margin-top:0">${Object.values(src).map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:""}`); }
+function redrawSafety(){ const v=document.querySelector('#app [data-view="safety"]'); v.innerHTML=safetyHTML(); restoreOpen(v); bindControls(); bindTips(v); drawSafety(); }
+
+/* the detail panel's Safety tab */
+const GOV = [["ge","Government effectiveness"],["rl","Rule of law"],["cc","Control of corruption"],["rq","Regulatory quality"],["pv","Political stability"],["va","Voice and accountability"]];
+function safetyPane(r){
+  const s=safe(r); if(!s.values) return `<p class="muted">No safety data for ${esc(r.name)}.</p>`;
+  const P=SMETA().pillars, M=SMETA().measures, f=r.fiscal;
+  const row=k=>`<div class="mrow"><span class="ltdot ${sl(r,k)||"none"}" title="${esc(LT_WORD[sl(r,k)]||"Not scored")}"></span><span class="mlab" data-tip="${esc(measureTip(r,k))}">${esc(M[k].label)}</span><b>${esc(sfmt(r,k))}</b></div>`;
+  const money=s.money||{}, bn=v=>!isNum(v)?"–":Math.abs(v)>=1000?(v/1000).toFixed(1)+"tn":Math.round(v)+"bn";
+  const extra={
+    debt: `${s.creditor?`<p class="note">${esc(s.creditor)}</p>`:""}${isNum(money.debtUsd)?`<p class="note">In money: about ${isNum(money.debtGbp)?`£${bn(money.debtGbp)} ($${bn(money.debtUsd)})`:`$${bn(money.debtUsd)}`}.</p>`:""}`,
+    bill: `${isNum(money.interestUsd)?`<p class="note" style="margin-top:8px">Net interest this year: about <b>${isNum(money.interestGbp)?"£"+bn(money.interestGbp):"$"+bn(money.interestUsd)}</b>${isNum(money.interestGbp)?` ($${bn(money.interestUsd)})`:""}, ${pp(f.interest,1)} of GDP. Average rate on its debt ${yld(f.effRate,1)} vs ${yld(B(r).y)} for new ${tenorWord(B(r).tenor)} borrowing.</p>`:""}
+      <div id="sInt" style="margin-top:6px"></div>`,
+    refi: (()=>{ const p=s.profile||{}, src=p.src||{}; const lines=[["atm","Average maturity"],["due1y","Due within a year"],["floating","Floating or inflation-linked"],["gfn","Financing need"]]
+        .filter(([k])=>src[k]).map(([k,l])=>`${l}: ${src[k]}`);
+      return `${p.note?`<p class="note">${esc(p.note)}</p>`:""}${s.gfnEstimate?`<p class="note">Financing need estimated as this year's deficit plus the bonds due within a year (the IMF gives no figure).</p>`:""}${lines.length?`<p class="note">${esc(lines.join(" · "))}.</p>`:""}`; })(),
+    lenders: (()=>{ const src=(s.profile||{}).src||{}; const lines=[["abroad","Held abroad"],["fx","Foreign currency"]].filter(([k])=>src[k]).map(([k,l])=>`${l}: ${src[k]}`);
+      return `${s.reserves?`<p class="note">Reserves: World Bank, ${esc(String(s.reserves.year))}.</p>`:""}${lines.length?`<p class="note">${esc(lines.join(" · "))}.</p>`:""}`; })(),
+    record: (()=>{ const d=sv(r,"defaults"), g=s.governance;
+      const eps=d&&(d.episodes||[]).length? `<ul class="why" style="margin-top:8px">${d.episodes.map(e=>`<li><b>${e.from}${e.to>e.from?"–"+e.to:""}</b>${e.what?": "+esc(e.what):""}</li>`).join("")}</ul>` : "";
+      const gov=g? `<div class="eyebrow" style="margin:14px 0 6px">Governance (World Bank, ${esc(String(g.year||""))}): rank among about 200 countries, 100 = best</div><div class="govs">${GOV.filter(([k])=>isNum(g[k])).map(([k,l])=>`<div class="gov"><span>${esc(l)}</span>${rangeBar(g[k],0,100,{ends:["0","100"]})}<b class="num">${Math.round(g[k])}</b></div>`).join("")}</div>` : "";
+      return `${eps}<div class="eyebrow" style="margin:14px 0 4px">Inflation, % a year (IMF; dashed = forecast)</div><div id="sInfl"></div>${gov}`; })(),
+  };
+  return `<div class="card verdict" style="display:block"><div class="row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${vdChip(s.verdict)}${P.map(p=>lt((s.pillars||{})[p.key],esc(p.label),pillarTip(r,p.key))).join("")}</div>
+      <p style="margin:10px 0 0;font-size:15px;line-height:1.55">${esc(safetySummary(r))}</p>
+      ${s.regime?`<p class="muted" style="margin:6px 0 0;font-size:13px">${esc(s.regime)}</p>`:""}
+      <p class="muted" style="margin:6px 0 0;font-size:12px">Fixed rules on the latest figures; hover any measure for its rule. Not advice.</p></div>
+    <div class="pcards">${P.map(p=>{ const ks=pillarMeasures(p.key).filter(k=>hasVal(r,k)), l=(s.pillars||{})[p.key];
+      return `<div class="card pcard"><div class="pc-head"><h3>${esc(p.label)}</h3>${lt(l,l?LT_WORD[l]:"No data")}</div><p class="pc-about">${esc(p.about)}</p>
+        ${ks.length?`<div class="mlist">${ks.map(row).join("")}</div>`:`<p class="muted" style="margin:0">No data for ${esc(r.name)} yet.</p>`}${extra[p.key]||""}</div>`; }).join("")}</div>`;
+}
+function drawSafetyPane(r){
+  const f=r.fiscal, cut=f.year-1;
+  const ip=f.intPath||[]; if(ip.length>1&&$("#sInt")){ const yrs=ip.map(p=>p[0]);
+    lineChart($("#sInt"),{t:yrs.map(yearTs),series:intSeries(r,yrs,"var(--s1)",cut).map(s=>({...s,name:s.name.replace(r.name,"Interest, % of revenue")})),h:180,fmt:v=>v.toFixed(0)+"%",baseline:0}); }
+  const ih=f.inflHist||[]; if(ih.length>1&&$("#sInfl")){ const yrs=ih.map(p=>p[0]), m=new Map(ih);
+    lineChart($("#sInfl"),{t:yrs.map(yearTs),series:[{v:yrs.map(y=>y<=cut?m.get(y):null),color:"var(--s2)",name:"Inflation",w:2},{v:yrs.map(y=>y>=cut?m.get(y):null),color:"var(--s2)",name:"Inflation (IMF forecast)",dash:"6 4",w:2}],h:170,fmt:v=>v.toFixed(1)+"%",baseline:isNum(f.inflTarget)?f.inflTarget:null,baselineLabel:isNum(f.inflTarget)?"target":""}); }
+}
+
 function monthlyHTML(d){
   const ms=d.monthly||[]; if(!ms.length) return "";
   return `<section>${secHead({eyebrow:"More markets",title:"Monthly data only",lead:"Six more government bond markets where free official data is only published monthly. Kept separate from the live tables and the score, because a month-old yield can't be compared fairly with today's."})}
-    <div class="tablebox"><table><thead><tr><th class="l sticky">Country</th><th>10-year yield</th><th class="l">Month</th><th>3-month change</th><th>1-year change</th><th class="l">Other maturities</th><th>3-year range</th><th>Real yield</th><th>Rating</th><th>Debt<small>% GDP</small></th><th>Interest<small>% revenue</small></th><th>Past 3 years</th></tr></thead>
+    <div class="tablebox"><table><thead><tr><th class="l sticky">Country</th><th>10-year yield</th><th class="l">Month</th><th>3-month change</th><th>1-year change</th><th class="l">Other maturities</th><th>3-year range</th><th>Real yield</th><th>Rating</th><th>Debt<small>% GDP</small></th><th>Interest<small>% revenue</small></th><th class="l">Safety<small>warning signs</small></th><th>Past 3 years</th></tr></thead>
     <tbody>${ms.map(m=>`<tr style="cursor:default"><td class="l sticky"><b>${esc(m.name)}</b><small class="muted" style="display:block;font-size:11px">${esc(m.source)}</small></td>
       <td><b class="num">${yld(m.y)}</b></td><td class="l"><span class="num ${m.stale?"warn":""}">${new Date(m.asOf*1000).toLocaleDateString(undefined,{month:"short",year:"numeric",timeZone:"UTC"})}</span></td>
       <td><span class="num ${ycls(m.d3m)}">${bpf(m.d3m)}</span></td><td><span class="num ${ycls(m.d1y)}">${bpf(m.d1y)}</span></td>
       <td class="l"><span class="num">${Object.entries(m.other||{}).sort((a,b)=>tenorYears(a[0])-tenorYears(b[0])).map(([t,v])=>`${t} ${yld(v)}`).join(" · ")||"–"}</span></td>
       <td style="min-width:120px">${rangeBar(m.y,m.lo3y,m.hi3y)}<small class="num muted">${yld(m.lo3y)} – ${yld(m.hi3y)}</small></td>
       <td><span class="num ${cls(m.realY)}">${yld(m.realY)}</span></td><td>${m.rating?`<span class="rt ${m.rating.ig?"ig":"hy"}">${esc(m.rating.label)}</span>`:"–"}</td>
-      <td><span class="num">${isNum(m.debt)?Math.round(m.debt):"–"}</span></td><td><span class="num">${isNum(m.intRev)?Math.round(m.intRev)+"%":"–"}</span></td><td>${sparkSVG(m.spark)}</td></tr>`).join("")}</tbody></table></div>
+      <td><span class="num">${isNum(m.debt)?Math.round(m.debt):"–"}</span></td><td><span class="num">${isNum(m.intRev)?Math.round(m.intRev)+"%":"–"}</span></td>
+      <td class="l"><a href="#safety" style="text-decoration:none">${vdChip(m.safety&&m.safety.verdict)}</a></td><td>${sparkSVG(m.spark)}</td></tr>`).join("")}</tbody></table></div>
     <p class="note">Monthly averages (Israel: zero-coupon yields; Czech Republic, Denmark and Romania: the EU's harmonised 10-year rate published by the ECB). Real yield uses the IMF's inflation forecast, as elsewhere. No free daily source was found for these, or for Saudi Arabia.</p></section>`;
 }
 function fiscalTable(){
@@ -708,6 +956,7 @@ function guideHTML(d){
       <li><b>Gilts:</b> search IBKR for a gilt's ISIN (shown in the UK gilts tab). Held to the end, a gilt pays its yield to maturity; outside an ISA or pension the coupons are taxed but the gain to £100 isn't.</li>
       <li><b>Other governments:</b> IBKR sells many governments' bonds directly through its bond search; what is on offer varies by country, and small trades in foreign bonds can be costly.</li>
       <li>Checked in IBKR's contract search on 7 Oct 2026.</li></ul>`)}
+    ${safetyGuide(d)}
     ${fold("g-data","Where the data comes from <small>and how fresh it is</small>",`<ul>
       <li><b>Yields, coupons, maturities, prices:</b> CNBC quotes (Tradeweb and dealer feeds), refreshed every ~15 minutes on the published site. Some emerging markets quote only a few times a day; markets with no trade in 5 days are marked <i>stale</i>.</li>
       <li><b>Norway, Poland, Singapore, Malaysia, the Philippines and Peru:</b> official daily sources instead (Norges Bank; the BondSpot fixing for Polish Treasury bonds; the Monetary Authority of Singapore; Bank Negara Malaysia; the Asian Development Bank's AsianBondsOnline, sourced from Bloomberg; the Central Reserve Bank of Peru), checked once a day. For Poland the "2-year", "5-year" and "10-year" are the fixed-rate bonds closest to those maturities.</li>
@@ -1058,9 +1307,9 @@ function bondTable(r){
 function partsHTML(r){ let grp="";
   return `<div class="parts">${Object.entries(PARTS).map(([k,p])=>{ const v=r.m.parts[k], head=p.group!==grp?`<div class="grp">${p.group} · ${Math.round(Object.keys(PARTS).filter(x=>PARTS[x].group===p.group).reduce((a,x)=>a+(S.data.weights[x]||0),0)*100)}%</div>`:""; grp=p.group;
     return `${head}<span title="${esc(p.tip)}">${esc(p.name)} <small class="muted">${Math.round((S.data.weights[k]||0)*100)}%</small></span><span class="bar" style="width:100%"><i style="width:${v??0}%;background:${scoreColor(v)}"></i></span><span class="pv">${v==null?"n/a":Math.round(v)} · ${esc(p.val(r))}</span>`; }).join("")}</div>`; }
-function openDetail(code){
-  const r=byCode(code); if(!r) return; S.sel=code;
-  const b=B(r), f=r.fiscal, tabs=[["summary","Summary"],["bonds","All maturities"],["curve","Curve"],["history","History"],["fiscal","Public finances"],["policy","Ratings & rates"]];
+function openDetail(code,tab){
+  const r=byCode(code); if(!r) return; S.sel=code; if(tab) S.dtab=tab;
+  const b=B(r), f=r.fiscal, tabs=[["summary","Summary"],["bonds","All maturities"],["curve","Curve"],["history","History"],["fiscal","Public finances"],["safety","Safety"],["policy","Ratings & rates"]];
   const facts=(items)=>`<div class="facts">${items.map(([l,v,s])=>`<div><span>${l}</span><b>${v}</b>${s?`<small>${s}</small>`:""}</div>`).join("")}</div>`;
   const so=standouts(r);
   const html=`<div class="hd"><div><div class="eyebrow">${esc(r.region)} · ${mktType(r)} · ${esc(ccyName(r.ccy))} · ${esc(bondName(r))}</div><h2>${esc(r.name)}</h2>
@@ -1105,6 +1354,7 @@ function openDetail(code){
       <div class="card chartbox"><div class="row"><span class="eyebrow">Government debt, % of GDP</span><span class="key"><i style="background:var(--s1)"></i>Actual</span><span class="key"><i class="dash" style="color:var(--s1)"></i>IMF forecast</span></div><div id="fDebt"></div></div>
       <div class="card chartbox"><div class="row"><span class="eyebrow">Budget balance, % of GDP</span><span class="key"><i style="background:var(--s1)"></i>Overall</span><span class="key"><i style="background:var(--s2)"></i>Before interest</span><span class="muted" style="font-size:12px">dashed = forecast</span></div><div id="fBal"></div></div>
       <p class="note">IMF World Economic Outlook and Fiscal Monitor; ${f.year} is an estimate and later years are forecasts.</p></div>
+    <div class="dgrid" data-pane="safety" hidden>${safetyPane(r)}</div>
     <div class="dgrid" data-pane="policy" hidden>
       <div class="card" style="padding:14px 16px"><div class="eyebrow" style="margin-bottom:8px">Credit ratings</div>${r.rating?`<table class="comp" style="width:100%"><thead><tr><th class="l" style="position:static">Agency</th><th class="l" style="position:static">Rating</th><th class="l" style="position:static">Outlook</th><th class="l" style="position:static">Since</th></tr></thead><tbody>
         ${["sp","moodys","fitch"].filter(k=>r.rating[k]).map(k=>`<tr style="cursor:default"><td class="l">${{sp:"S&P",moodys:"Moody's",fitch:"Fitch"}[k]}</td><td class="l"><b class="num">${esc(r.rating[k].r)}</b></td><td class="l ${/^neg/i.test(r.rating[k].o)?"neg":/^pos/i.test(r.rating[k].o)?"pos":""}">${esc(r.rating[k].o||"–")}</td><td class="l">${esc(r.rating[k].d||"–")}</td></tr>`).join("")}</tbody></table>
@@ -1120,6 +1370,7 @@ function openDetail(code){
     if(k==="history") drawHistory(r);
     if(k==="summary"&&r.m.path&&r.m.path.length>=2&&$("#dScore")) lineChart($("#dScore"),{t:r.m.path.map(p=>p[0]),series:[{v:r.m.path.map(p=>p[1]),color:scoreColor(r.m.score),name:"Score",w:2}],h:140,baseline:50,fmt:v=>v.toFixed(0)});
     if(k==="fiscal") drawFiscal(r);
+    if(k==="safety") drawSafetyPane(r);
     if(k==="policy"&&r.policy) lineChart($("#pChart"),{t:r.policy.series.map(p=>p[0]),series:[{v:r.policy.series.map(p=>p[1]),color:"var(--s1)",name:"Policy rate",w:2}],h:200,fmt:v=>v.toFixed(2)+"%"});
   });
 }
@@ -1185,6 +1436,12 @@ function bindControls(){
   const ax=()=>{ S.sx=$("#sxSel").value; S.sy=$("#sySel").value; store.set("sx",S.sx); store.set("sy",S.sy); document.querySelectorAll("[data-preset]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.preset===`${S.sx},${S.sy}`)); drawScatter(); };
   $("#sxSel")&&($("#sxSel").onchange=ax); $("#sySel")&&($("#sySel").onchange=ax);
   bindSeg("sgrpSeg",v=>{ S.sgrp=v; store.set("sgrp",v); document.querySelectorAll("#sgrpSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v)); drawScatter(); });
+  // safety
+  bindSeg("sfSeg",v=>{ S.sfilt=v; store.set("sfilt",v); redrawSafety(); });
+  bindSeg("ssSeg",v=>{ S.ssort=v; store.set("ssort",v); redrawSafety(); });
+  $("#safeAll")&&($("#safeAll").onclick=()=>{ S.sall=!S.sall; redrawSafety(); });
+  $("#intAdd")&&($("#intAdd").onchange=e=>{ if(e.target.value){ S.intSel=[...S.intSel,e.target.value].slice(0,5); store.set("intSel",S.intSel); redrawSafety(); } });
+  document.querySelectorAll("#intChips [data-irm]").forEach(b=>b.onclick=()=>{ S.intSel=S.intSel.filter(c=>c!==b.dataset.irm); if(!S.intSel.length) S.intSel=["US"]; store.set("intSel",S.intSel); redrawSafety(); });
   // credit
   $("#creditSel")&&($("#creditSel").onchange=e=>{ S.credit=e.target.value; store.set("credit",S.credit); drawCredit(); });
   $("#inflSel")&&($("#inflSel").onchange=e=>{ S.infl=e.target.value; store.set("infl",S.infl); drawCredit(); });
@@ -1204,8 +1461,8 @@ function redrawBanks(){ const v=document.querySelector('#app [data-view="banks"]
 function drawOverview(){ const el=$("#ovScatter"); if(!el) return;
   scatterChart(el,{pts:rows().map(r=>({x:r.m.safety,y:r.m.value,label:r.code,key:r.code,color:r.dm?"var(--s1)":"var(--s2)",tip:`<b>${esc(r.name)}</b><br>Value ${Math.round(r.m.value)} · safety ${Math.round(r.m.safety)} · score ${Math.round(r.m.score)}`})),
     xlab:"Safety (0–100) →",ylab:"Value (0–100) →",xfmt:v=>v.toFixed(0),yfmt:v=>v.toFixed(0),fit:false,quad:vsQuad,h:330}); }
-Views.init(["overview","monitor","curves","countries","credit","banks","gilts","portfolio","briefing","record","guide"],
-  {overview:drawOverview,curves:()=>{drawCurves();drawPair();},countries:()=>{drawMap();drawScatter();},credit:drawCredit,banks:drawBanks,briefing:drawBriefing,record:drawRecord});
+Views.init(["overview","monitor","curves","countries","safety","credit","banks","gilts","portfolio","briefing","record","guide"],
+  {overview:drawOverview,curves:()=>{drawCurves();drawPair();},countries:()=>{drawMap();drawScatter();},safety:drawSafety,credit:drawCredit,banks:drawBanks,briefing:drawBriefing,record:drawRecord});
 let resizeT; addEventListener("resize",()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if(S.data) Views.apply(); },200); });
 startLoop({url:"bonds",onData:data=>{ S.data=data; render(); if(S.sel&&$("#drawer")) openDetail(S.sel); }});
 </script>

@@ -1,0 +1,260 @@
+{
+ "source": "IMF Fiscal Monitor, April 2026: Methodological and Statistical Appendix, Tables A23-A25 (Structural Fiscal Indicators)",
+ "edition": "April 2026",
+ "url": "https://www.imf.org/-/media/files/publications/fiscal-monitor/2026/april/english/msa.pdf",
+ "definitions": {
+  "gfn": "Gross financing need, 2026, % of GDP: the projected overall deficit plus maturing government debt (for most economies, central government securities).",
+  "atm": "Average term to maturity of government securities, 2026, years (for most economies, central government securities; Bloomberg).",
+  "repay": "Debt divided by average term to maturity, 2026, % of GDP: the average yearly repayment.",
+  "abroad": "Non-resident holdings of general government debt, % of the total, end-2024 or latest (Joint External Debt Hub)."
+ },
+ "update": "Twice a year, when the IMF publishes the April and October Fiscal Monitor.",
+ "markets": {
+  "AT": {
+   "atm": 12.4,
+   "gfn": 10.2,
+   "repay": 6.6,
+   "abroad": 62.8
+  },
+  "AU": {
+   "atm": 6.3,
+   "gfn": 6.7,
+   "repay": 8.1,
+   "abroad": 30.5
+  },
+  "BE": {
+   "atm": 10.1,
+   "gfn": 14.9,
+   "repay": 10.8,
+   "abroad": 58.4
+  },
+  "BR": {
+   "atm": 5.4,
+   "gfn": 17.3,
+   "repay": 17.9,
+   "abroad": 10.5
+  },
+  "CA": {
+   "atm": 6.4,
+   "gfn": 13.1,
+   "repay": 17.4,
+   "abroad": 24.3
+  },
+  "CH": {
+   "atm": 5.1,
+   "gfn": 1.5,
+   "repay": 7.6,
+   "abroad": 8.3
+  },
+  "CL": {
+   "atm": 7.7,
+   "gfn": 4.6,
+   "repay": 5.5,
+   "abroad": 36.8
+  },
+  "CN": {
+   "atm": 6.4,
+   "repay": 16.7,
+   "abroad": 2.1
+  },
+  "CO": {
+   "atm": 10.3,
+   "gfn": 10.0,
+   "repay": 5.9,
+   "abroad": 28.0
+  },
+  "CZ": {
+   "atm": 3.2,
+   "gfn": 7.0,
+   "repay": 14.5,
+   "abroad": 21.9
+  },
+  "DE": {
+   "atm": 7.1,
+   "gfn": 9.2,
+   "repay": 9.2,
+   "abroad": 46.8
+  },
+  "DK": {
+   "atm": 9.2,
+   "gfn": 1.4,
+   "repay": 3.0,
+   "abroad": 45.2
+  },
+  "EG": {
+   "atm": 3.6,
+   "repay": 24.0,
+   "abroad": 25.4
+  },
+  "ES": {
+   "atm": 7.6,
+   "gfn": 11.6,
+   "repay": 13.0,
+   "abroad": 48.1
+  },
+  "FI": {
+   "atm": 7.2,
+   "gfn": 16.2,
+   "repay": 12.9,
+   "abroad": 55.6
+  },
+  "FR": {
+   "atm": 8.2,
+   "gfn": 15.1,
+   "repay": 14.4,
+   "abroad": 49.6
+  },
+  "GB": {
+   "atm": 13.3,
+   "gfn": 10.4,
+   "repay": 7.8,
+   "abroad": 26.1
+  },
+  "HK": {
+   "abroad": 36.4
+  },
+  "HU": {
+   "atm": 4.6,
+   "gfn": 12.0,
+   "repay": 16.8,
+   "abroad": 38.1
+  },
+  "ID": {
+   "atm": 7.7,
+   "gfn": 6.5,
+   "repay": 5.4,
+   "abroad": 35.9
+  },
+  "IE": {
+   "atm": 9.4,
+   "gfn": 1.3,
+   "repay": 3.4,
+   "abroad": 50.8
+  },
+  "IL": {
+   "atm": 7.5,
+   "repay": 9.3,
+   "abroad": 15.2
+  },
+  "IN": {
+   "atm": 12.3,
+   "gfn": 16.0,
+   "repay": 6.8,
+   "abroad": 5.2
+  },
+  "IT": {
+   "atm": 7.0,
+   "gfn": 15.6,
+   "repay": 19.7,
+   "abroad": 35.2
+  },
+  "JP": {
+   "atm": 8.6,
+   "gfn": 30.2,
+   "repay": 23.7,
+   "abroad": 14.0
+  },
+  "KR": {
+   "atm": 10.0,
+   "gfn": 3.7,
+   "repay": 5.4,
+   "abroad": 21.0
+  },
+  "MX": {
+   "atm": 8.2,
+   "gfn": 14.9,
+   "repay": 7.6,
+   "abroad": 20.3
+  },
+  "MY": {
+   "atm": 9.6,
+   "repay": 7.2,
+   "abroad": 19.4
+  },
+  "NG": {
+   "atm": 6.5,
+   "repay": 5.0
+  },
+  "NL": {
+   "atm": 8.7,
+   "gfn": 6.6,
+   "repay": 5.1,
+   "abroad": 42.4
+  },
+  "NO": {
+   "atm": 5.8,
+   "repay": 7.3,
+   "abroad": 63.1
+  },
+  "NZ": {
+   "atm": 7.2,
+   "gfn": 6.4,
+   "repay": 7.8,
+   "abroad": 53.6
+  },
+  "PE": {
+   "atm": 12.6,
+   "gfn": 2.9,
+   "repay": 2.4,
+   "abroad": 39.6
+  },
+  "PH": {
+   "atm": 6.9,
+   "gfn": 10.4,
+   "repay": 8.7,
+   "abroad": 31.8
+  },
+  "PL": {
+   "atm": 5.3,
+   "gfn": 14.3,
+   "repay": 12.3,
+   "abroad": 25.5
+  },
+  "PT": {
+   "atm": 7.7,
+   "gfn": 5.7,
+   "repay": 11.1,
+   "abroad": 52.5
+  },
+  "RO": {
+   "atm": 6.4,
+   "gfn": 13.5,
+   "repay": 9.6,
+   "abroad": 54.0
+  },
+  "SE": {
+   "atm": 3.7,
+   "gfn": 5.9,
+   "repay": 9.8,
+   "abroad": 23.6
+  },
+  "SG": {
+   "atm": 3.1,
+   "gfn": 14.5,
+   "repay": 55.6,
+   "abroad": 0.0
+  },
+  "TH": {
+   "atm": 8.4,
+   "repay": 8.0,
+   "abroad": 8.1
+  },
+  "TR": {
+   "atm": 4.4,
+   "gfn": 7.5,
+   "repay": 5.8,
+   "abroad": 38.8
+  },
+  "US": {
+   "atm": 5.8,
+   "gfn": 11.8,
+   "repay": 22.2
+  },
+  "ZA": {
+   "atm": 10.6,
+   "gfn": 13.3,
+   "repay": 7.4,
+   "abroad": 26.0
+  }
+ }
+}
