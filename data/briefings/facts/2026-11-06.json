@@ -1,0 +1,895 @@
+{
+ "weekEnding": "2026-11-06",
+ "generated": "2026-11-07T13:36+00:00",
+ "headlineYields": [
+  {
+   "name": "United States",
+   "code": "US",
+   "maturity": "10Y",
+   "yield": 4.859,
+   "weekChangeBp": -7.0,
+   "monthChangeBp": -37.4,
+   "yearChangeBp": 76.9,
+   "realYield": 2.739,
+   "yieldHedgedIntoPounds": 4.734,
+   "score": 48,
+   "signal": "Neutral",
+   "scoreChangeWeek": 4.1,
+   "rating": "AA+",
+   "debtPctGdp": 126.8,
+   "staleQuote": false
+  },
+  {
+   "name": "United Kingdom",
+   "code": "GB",
+   "maturity": "10Y",
+   "yield": 5.1559,
+   "weekChangeBp": -13.6,
+   "monthChangeBp": -27.0,
+   "yearChangeBp": 67.9,
+   "realYield": 2.996,
+   "yieldHedgedIntoPounds": 5.156,
+   "score": 55,
+   "signal": "Neutral",
+   "scoreChangeWeek": 1.0,
+   "rating": "AA-",
+   "debtPctGdp": 102,
+   "staleQuote": false
+  },
+  {
+   "name": "Germany",
+   "code": "DE",
+   "maturity": "10Y",
+   "yield": 3.2508,
+   "weekChangeBp": -7.4,
+   "monthChangeBp": -24.3,
+   "yearChangeBp": 58.3,
+   "realYield": 0.971,
+   "yieldHedgedIntoPounds": 4.501,
+   "score": 42,
+   "signal": "Neutral",
+   "scoreChangeWeek": 2.0,
+   "rating": "AAA",
+   "debtPctGdp": 64.6,
+   "staleQuote": false
+  },
+  {
+   "name": "France",
+   "code": "FR",
+   "maturity": "10Y",
+   "yield": 4.7749,
+   "weekChangeBp": -20.1,
+   "monthChangeBp": -11.2,
+   "yearChangeBp": 131.0,
+   "realYield": 2.835,
+   "yieldHedgedIntoPounds": 6.025,
+   "score": 62,
+   "signal": "Overweight",
+   "scoreChangeWeek": 1.5,
+   "rating": "A+",
+   "debtPctGdp": 118.5,
+   "staleQuote": false
+  },
+  {
+   "name": "Italy",
+   "code": "IT",
+   "maturity": "10Y",
+   "yield": 4.3564,
+   "weekChangeBp": -13.4,
+   "monthChangeBp": -25.4,
+   "yearChangeBp": 91.9,
+   "realYield": 2.136,
+   "yieldHedgedIntoPounds": 5.606,
+   "score": 51,
+   "signal": "Neutral",
+   "scoreChangeWeek": -0.7,
+   "rating": "BBB+",
+   "debtPctGdp": 137.9,
+   "staleQuote": false
+  },
+  {
+   "name": "Japan",
+   "code": "JP",
+   "maturity": "10Y",
+   "yield": 2.64,
+   "weekChangeBp": -12.9,
+   "monthChangeBp": -44.1,
+   "yearChangeBp": 96.0,
+   "realYield": 0.52,
+   "yieldHedgedIntoPounds": 5.14,
+   "score": 37,
+   "signal": "Underweight",
+   "scoreChangeWeek": 2.2,
+   "rating": "A+",
+   "debtPctGdp": 199.4,
+   "staleQuote": false
+  }
+ ],
+ "usCurve2s10sBp": 34.7,
+ "usCurve2s10sWeekChangeBp": -0.09999999999999432,
+ "franceMinusGermany10yBp": 152,
+ "italyMinusGermany10yBp": 111,
+ "biggestYieldRisesWeek": [
+  {
+   "name": "Egypt",
+   "code": "EG",
+   "maturity": "1Y",
+   "yield": 26.138,
+   "weekChangeBp": 18.0,
+   "monthChangeBp": 36.0,
+   "yearChangeBp": 53.3,
+   "realYield": 11.338,
+   "yieldHedgedIntoPounds": 4.951,
+   "score": 51,
+   "signal": "Neutral",
+   "scoreChangeWeek": 0.9,
+   "rating": "B-",
+   "debtPctGdp": 84,
+   "staleQuote": false
+  },
+  {
+   "name": "Turkey",
+   "code": "TR",
+   "maturity": "10Y",
+   "yield": 33.07,
+   "weekChangeBp": 5.0,
+   "monthChangeBp": 23.0,
+   "yearChangeBp": 308.0,
+   "realYield": 14.59,
+   "yieldHedgedIntoPounds": 0.82,
+   "score": 56,
+   "signal": "Neutral",
+   "scoreChangeWeek": 0.4,
+   "rating": "BB-",
+   "debtPctGdp": 22.5,
+   "staleQuote": false
+  },
+  {
+   "name": "Indonesia",
+   "code": "ID",
+   "maturity": "10Y",
+   "yield": 7.692,
+   "weekChangeBp": 4.9,
+   "monthChangeBp": 45.6,
+   "yearChangeBp": 155.2,
+   "realYield": 5.132,
+   "yieldHedgedIntoPounds": 5.692,
+   "score": 74,
+   "signal": "Overweight",
+   "scoreChangeWeek": 3.8,
+   "rating": "BBB",
+   "debtPctGdp": 41.7,
+   "staleQuote": false
+  },
+  {
+   "name": "China",
+   "code": "CN",
+   "maturity": "10Y",
+   "yield": 1.604,
+   "weekChangeBp": -2.7,
+   "monthChangeBp": -8.1,
+   "yearChangeBp": -15.4,
+   "realYield": -0.176,
+   "yieldHedgedIntoPounds": 2.354,
+   "score": 17,
+   "signal": "Avoid",
+   "scoreChangeWeek": 0.0,
+   "rating": "A+",
+   "debtPctGdp": 104.4,
+   "staleQuote": false
+  },
+  {
+   "name": "Switzerland",
+   "code": "CH",
+   "maturity": "10Y",
+   "yield": 0.4407,
+   "weekChangeBp": -3.4,
+   "monthChangeBp": -13.4,
+   "yearChangeBp": 31.1,
+   "realYield": -0.299,
+   "yieldHedgedIntoPounds": 4.191,
+   "score": 41,
+   "signal": "Neutral",
+   "scoreChangeWeek": -0.5,
+   "rating": "AAA",
+   "debtPctGdp": 38.3,
+   "staleQuote": false
+  }
+ ],
+ "biggestYieldFallsWeek": [
+  {
+   "name": "South Africa",
+   "code": "ZA",
+   "maturity": "10Y",
+   "yield": 8.44,
+   "weekChangeBp": -29.0,
+   "monthChangeBp": -58.5,
+   "yearChangeBp": -38.5,
+   "realYield": 5.2,
+   "yieldHedgedIntoPounds": 4.94,
+   "score": 48,
+   "signal": "Neutral",
+   "scoreChangeWeek": -0.6,
+   "rating": "BB",
+   "debtPctGdp": 78,
+   "staleQuote": false
+  },
+  {
+   "name": "Brazil",
+   "code": "BR",
+   "maturity": "10Y",
+   "yield": 15.18,
+   "weekChangeBp": -23.5,
+   "monthChangeBp": 244.5,
+   "yearChangeBp": 135.5,
+   "realYield": 11.94,
+   "yieldHedgedIntoPounds": 5.18,
+   "score": 61,
+   "signal": "Overweight",
+   "scoreChangeWeek": -1.1,
+   "rating": "BB",
+   "debtPctGdp": 97,
+   "staleQuote": false
+  },
+  {
+   "name": "India",
+   "code": "IN",
+   "maturity": "10Y",
+   "yield": 7.19,
+   "weekChangeBp": -22.4,
+   "monthChangeBp": -9.8,
+   "yearChangeBp": null,
+   "realYield": 3.13,
+   "yieldHedgedIntoPounds": 5.44,
+   "score": 54,
+   "signal": "Neutral",
+   "scoreChangeWeek": -0.7,
+   "rating": "BBB-",
+   "debtPctGdp": 83.1,
+   "staleQuote": false
+  },
+  {
+   "name": "Greece",
+   "code": "GR",
+   "maturity": "10Y",
+   "yield": 4.1481,
+   "weekChangeBp": -20.3,
+   "monthChangeBp": -25.4,
+   "yearChangeBp": 78.9,
+   "realYield": 1.728,
+   "yieldHedgedIntoPounds": 5.398,
+   "score": 52,
+   "signal": "Neutral",
+   "scoreChangeWeek": 0.3,
+   "rating": "BBB",
+   "debtPctGdp": 136,
+   "staleQuote": false
+  },
+  {
+   "name": "France",
+   "code": "FR",
+   "maturity": "10Y",
+   "yield": 4.7749,
+   "weekChangeBp": -20.1,
+   "monthChangeBp": -11.2,
+   "yearChangeBp": 131.0,
+   "realYield": 2.835,
+   "yieldHedgedIntoPounds": 6.025,
+   "score": 62,
+   "signal": "Overweight",
+   "scoreChangeWeek": 1.5,
+   "rating": "A+",
+   "debtPctGdp": 118.5,
+   "staleQuote": false
+  }
+ ],
+ "invertedCurves": [
+  "Norway"
+ ],
+ "credit": [
+  {
+   "label": "US investment grade",
+   "level": 93.0,
+   "unit": "bp",
+   "weekChangeBp": -1.0,
+   "monthChangeBp": 11.0,
+   "higherThanPctOfDaysSince": [
+    72,
+    2023
+   ]
+  },
+  {
+   "label": "US high yield",
+   "level": 348.0,
+   "unit": "bp",
+   "weekChangeBp": 4.0,
+   "monthChangeBp": 33.0,
+   "higherThanPctOfDaysSince": [
+    89,
+    2023
+   ]
+  },
+  {
+   "label": "Euro high yield",
+   "level": 345.0,
+   "unit": "bp",
+   "weekChangeBp": -14.0,
+   "monthChangeBp": 19.0,
+   "higherThanPctOfDaysSince": [
+    73,
+    2023
+   ]
+  },
+  {
+   "label": "EM corporates (all)",
+   "level": 184.0,
+   "unit": "bp",
+   "weekChangeBp": 3.0,
+   "monthChangeBp": 26.0,
+   "higherThanPctOfDaysSince": [
+    67,
+    2023
+   ]
+  }
+ ],
+ "inflation": [
+  {
+   "label": "10-year breakeven inflation",
+   "level": 2.23,
+   "unit": "%",
+   "weekChangeBp": -11.0,
+   "monthChangeBp": -12.0,
+   "higherThanPctOfDaysSince": [
+    50,
+    2016
+   ]
+  },
+  {
+   "label": "5-year, 5-year forward inflation",
+   "level": 2.17,
+   "unit": "%",
+   "weekChangeBp": -5.0,
+   "monthChangeBp": -16.0,
+   "higherThanPctOfDaysSince": [
+    46,
+    2016
+   ]
+  },
+  {
+   "label": "10-year TIPS real yield",
+   "level": 2.6,
+   "unit": "%",
+   "weekChangeBp": 0.0,
+   "monthChangeBp": -27.0,
+   "higherThanPctOfDaysSince": [
+    98,
+    2016
+   ]
+  }
+ ],
+ "bondVolatilityMOVE": {
+  "level": 93,
+  "monthChange": -8
+ },
+ "centralBankMovesThisWeek": [],
+ "conditions": [
+  {
+   "rule": "Yields falling",
+   "active": true,
+   "note": "The typical developed-market 10-year yield is down 27bp over the past month (22 of 22 fell). Falling yields lift bond prices, most of all for longer bonds."
+  },
+  {
+   "rule": "Curves flattening",
+   "active": true,
+   "note": "The gap between 10-year and 2-year yields has narrowed by a typical 16bp over the month. Short yields are rising faster than long ones (or falling more slowly); often a sign that markets expect central banks to keep rates high."
+  },
+  {
+   "rule": "Credit under stress",
+   "active": true,
+   "note": "US high-yield bonds pay 348bp more than Treasuries, wider than 89% of days in the past 3 years: investors are demanding more for default risk."
+  },
+  {
+   "rule": "Bond volatility",
+   "active": false,
+   "note": "The MOVE index (expected swings in US Treasury yields) is 93: normal (calm is 80 or below, stressed 120 or above)."
+  },
+  {
+   "rule": "Inflation expectations",
+   "active": false,
+   "note": "Markets expect US inflation to average 2.17% in the five years starting five years from now: close to normal (the Fed targets 2%; this gauge has usually sat at 2.0-2.6%)."
+  },
+  {
+   "rule": "Central banks tightening",
+   "active": true,
+   "note": "In the past 3 months 12 of the 26 central banks followed here raised interest rates and 3 cut them. Rate rises push short-term yields up most."
+  }
+ ],
+ "highestScores": [
+  {
+   "name": "Indonesia",
+   "code": "ID",
+   "maturity": "10Y",
+   "yield": 7.692,
+   "weekChangeBp": 4.9,
+   "monthChangeBp": 45.6,
+   "yearChangeBp": 155.2,
+   "realYield": 5.132,
+   "yieldHedgedIntoPounds": 5.692,
+   "score": 74,
+   "signal": "Overweight",
+   "scoreChangeWeek": 3.8,
+   "rating": "BBB",
+   "debtPctGdp": 41.7,
+   "staleQuote": false
+  },
+  {
+   "name": "Philippines",
+   "code": "PH",
+   "maturity": "10Y",
+   "yield": 7.9739,
+   "weekChangeBp": -10.2,
+   "monthChangeBp": -13.8,
+   "yearChangeBp": null,
+   "realYield": 4.714,
+   "yieldHedgedIntoPounds": 6.224,
+   "score": 66,
+   "signal": "Overweight",
+   "scoreChangeWeek": -1.3,
+   "rating": "BBB",
+   "debtPctGdp": 60.5,
+   "staleQuote": false
+  },
+  {
+   "name": "France",
+   "code": "FR",
+   "maturity": "10Y",
+   "yield": 4.7749,
+   "weekChangeBp": -20.1,
+   "monthChangeBp": -11.2,
+   "yearChangeBp": 131.0,
+   "realYield": 2.835,
+   "yieldHedgedIntoPounds": 6.025,
+   "score": 62,
+   "signal": "Overweight",
+   "scoreChangeWeek": 1.5,
+   "rating": "A+",
+   "debtPctGdp": 118.5,
+   "staleQuote": false
+  },
+  {
+   "name": "Poland",
+   "code": "PL",
+   "maturity": "10Y",
+   "yield": 6.26,
+   "weekChangeBp": 0.0,
+   "monthChangeBp": 0.0,
+   "yearChangeBp": 99.0,
+   "realYield": 3.38,
+   "yieldHedgedIntoPounds": 6.26,
+   "score": 62,
+   "signal": "Overweight",
+   "scoreChangeWeek": -0.4,
+   "rating": "A-",
+   "debtPctGdp": 66.6,
+   "staleQuote": true
+  },
+  {
+   "name": "Brazil",
+   "code": "BR",
+   "maturity": "10Y",
+   "yield": 15.18,
+   "weekChangeBp": -23.5,
+   "monthChangeBp": 244.5,
+   "yearChangeBp": 135.5,
+   "realYield": 11.94,
+   "yieldHedgedIntoPounds": 5.18,
+   "score": 61,
+   "signal": "Overweight",
+   "scoreChangeWeek": -1.1,
+   "rating": "BB",
+   "debtPctGdp": 97,
+   "staleQuote": false
+  }
+ ],
+ "lowestScores": [
+  {
+   "name": "China",
+   "code": "CN",
+   "maturity": "10Y",
+   "yield": 1.604,
+   "weekChangeBp": -2.7,
+   "monthChangeBp": -8.1,
+   "yearChangeBp": -15.4,
+   "realYield": -0.176,
+   "yieldHedgedIntoPounds": 2.354,
+   "score": 17,
+   "signal": "Avoid",
+   "scoreChangeWeek": 0.0,
+   "rating": "A+",
+   "debtPctGdp": 104.4,
+   "staleQuote": false
+  },
+  {
+   "name": "Singapore",
+   "code": "SG",
+   "maturity": "10Y",
+   "yield": 2.09,
+   "weekChangeBp": -15.0,
+   "monthChangeBp": -40.0,
+   "yearChangeBp": 16.0,
+   "realYield": 0.05,
+   "yieldHedgedIntoPounds": 3.98,
+   "score": 25,
+   "signal": "Underweight",
+   "scoreChangeWeek": 0.0,
+   "rating": "AAA",
+   "debtPctGdp": 166.4,
+   "staleQuote": false
+  },
+  {
+   "name": "Thailand",
+   "code": "TH",
+   "maturity": "10Y",
+   "yield": 1.989,
+   "weekChangeBp": -10.1,
+   "monthChangeBp": -35.4,
+   "yearChangeBp": 24.2,
+   "realYield": 0.249,
+   "yieldHedgedIntoPounds": 4.739,
+   "score": 27,
+   "signal": "Underweight",
+   "scoreChangeWeek": -0.7,
+   "rating": "BBB+",
+   "debtPctGdp": 67.2,
+   "staleQuote": false
+  },
+  {
+   "name": "Hungary",
+   "code": "HU",
+   "maturity": "10Y",
+   "yield": 5.402,
+   "weekChangeBp": -12.5,
+   "monthChangeBp": -25.8,
+   "yearChangeBp": -153.8,
+   "realYield": 2.442,
+   "yieldHedgedIntoPounds": 3.652,
+   "score": 27,
+   "signal": "Underweight",
+   "scoreChangeWeek": -0.1,
+   "rating": "BBB-",
+   "debtPctGdp": 78.7,
+   "staleQuote": false
+  },
+  {
+   "name": "Japan",
+   "code": "JP",
+   "maturity": "10Y",
+   "yield": 2.64,
+   "weekChangeBp": -12.9,
+   "monthChangeBp": -44.1,
+   "yearChangeBp": 96.0,
+   "realYield": 0.52,
+   "yieldHedgedIntoPounds": 5.14,
+   "score": 37,
+   "signal": "Underweight",
+   "scoreChangeWeek": 2.2,
+   "rating": "A+",
+   "debtPctGdp": 199.4,
+   "staleQuote": false
+  }
+ ],
+ "biggestScoreRises": [
+  {
+   "name": "United States",
+   "code": "US",
+   "maturity": "10Y",
+   "yield": 4.859,
+   "weekChangeBp": -7.0,
+   "monthChangeBp": -37.4,
+   "yearChangeBp": 76.9,
+   "realYield": 2.739,
+   "yieldHedgedIntoPounds": 4.734,
+   "score": 48,
+   "signal": "Neutral",
+   "scoreChangeWeek": 4.1,
+   "rating": "AA+",
+   "debtPctGdp": 126.8,
+   "staleQuote": false
+  },
+  {
+   "name": "Indonesia",
+   "code": "ID",
+   "maturity": "10Y",
+   "yield": 7.692,
+   "weekChangeBp": 4.9,
+   "monthChangeBp": 45.6,
+   "yearChangeBp": 155.2,
+   "realYield": 5.132,
+   "yieldHedgedIntoPounds": 5.692,
+   "score": 74,
+   "signal": "Overweight",
+   "scoreChangeWeek": 3.8,
+   "rating": "BBB",
+   "debtPctGdp": 41.7,
+   "staleQuote": false
+  },
+  {
+   "name": "Austria",
+   "code": "AT",
+   "maturity": "10Y",
+   "yield": 3.5226,
+   "weekChangeBp": -9.2,
+   "monthChangeBp": -22.6,
+   "yearChangeBp": 55.9,
+   "realYield": 1.183,
+   "yieldHedgedIntoPounds": 4.773,
+   "score": 46,
+   "signal": "Neutral",
+   "scoreChangeWeek": 2.3,
+   "rating": "AA+",
+   "debtPctGdp": 82.4,
+   "staleQuote": false
+  },
+  {
+   "name": "Japan",
+   "code": "JP",
+   "maturity": "10Y",
+   "yield": 2.64,
+   "weekChangeBp": -12.9,
+   "monthChangeBp": -44.1,
+   "yearChangeBp": 96.0,
+   "realYield": 0.52,
+   "yieldHedgedIntoPounds": 5.14,
+   "score": 37,
+   "signal": "Underweight",
+   "scoreChangeWeek": 2.2,
+   "rating": "A+",
+   "debtPctGdp": 199.4,
+   "staleQuote": false
+  },
+  {
+   "name": "Germany",
+   "code": "DE",
+   "maturity": "10Y",
+   "yield": 3.2508,
+   "weekChangeBp": -7.4,
+   "monthChangeBp": -24.3,
+   "yearChangeBp": 58.3,
+   "realYield": 0.971,
+   "yieldHedgedIntoPounds": 4.501,
+   "score": 42,
+   "signal": "Neutral",
+   "scoreChangeWeek": 2.0,
+   "rating": "AAA",
+   "debtPctGdp": 64.6,
+   "staleQuote": false
+  }
+ ],
+ "biggestScoreFalls": [
+  {
+   "name": "Sweden",
+   "code": "SE",
+   "maturity": "10Y",
+   "yield": 2.97,
+   "weekChangeBp": -15.3,
+   "monthChangeBp": -26.8,
+   "yearChangeBp": 35.3,
+   "realYield": 0.85,
+   "yieldHedgedIntoPounds": 4.97,
+   "score": 50,
+   "signal": "Neutral",
+   "scoreChangeWeek": -6.6,
+   "rating": "AAA",
+   "debtPctGdp": 35.1,
+   "staleQuote": false
+  },
+  {
+   "name": "Norway",
+   "code": "NO",
+   "maturity": "10Y",
+   "yield": 4.31,
+   "weekChangeBp": -12.5,
+   "monthChangeBp": -37.2,
+   "yearChangeBp": 27.7,
+   "realYield": 2.09,
+   "yieldHedgedIntoPounds": 3.56,
+   "score": 56,
+   "signal": "Neutral",
+   "scoreChangeWeek": -5.1,
+   "rating": "AAA",
+   "debtPctGdp": 40,
+   "staleQuote": false
+  },
+  {
+   "name": "Ireland",
+   "code": "IE",
+   "maturity": "10Y",
+   "yield": 3.4148,
+   "weekChangeBp": -5.7,
+   "monthChangeBp": -22.5,
+   "yearChangeBp": 51.0,
+   "realYield": 1.275,
+   "yieldHedgedIntoPounds": 4.665,
+   "score": 56,
+   "signal": "Neutral",
+   "scoreChangeWeek": -3.5,
+   "rating": "AA",
+   "debtPctGdp": 33.5,
+   "staleQuote": false
+  },
+  {
+   "name": "Hong Kong",
+   "code": "HK",
+   "maturity": "10Y",
+   "yield": 3.662,
+   "weekChangeBp": -19.3,
+   "monthChangeBp": -55.8,
+   "yearChangeBp": null,
+   "realYield": 1.502,
+   "yieldHedgedIntoPounds": 3.162,
+   "score": 41,
+   "signal": "Neutral",
+   "scoreChangeWeek": -2.2,
+   "rating": "AA",
+   "debtPctGdp": 14.1,
+   "staleQuote": false
+  },
+  {
+   "name": "Finland",
+   "code": "FI",
+   "maturity": "10Y",
+   "yield": 3.6485,
+   "weekChangeBp": -9.5,
+   "monthChangeBp": -24.2,
+   "yearChangeBp": 61.9,
+   "realYield": 1.768,
+   "yieldHedgedIntoPounds": 4.899,
+   "score": 50,
+   "signal": "Neutral",
+   "scoreChangeWeek": -1.5,
+   "rating": "AA+",
+   "debtPctGdp": 90.6,
+   "staleQuote": false
+  }
+ ],
+ "signalChangesThisWeek": [
+  {
+   "name": "Chile",
+   "from": "Overweight",
+   "to": "Neutral",
+   "date": "2026-10-31"
+  },
+  {
+   "name": "Germany",
+   "from": "Neutral",
+   "to": "Underweight",
+   "date": "2026-10-31"
+  },
+  {
+   "name": "Chile",
+   "from": "Neutral",
+   "to": "Overweight",
+   "date": "2026-11-03"
+  },
+  {
+   "name": "Germany",
+   "from": "Underweight",
+   "to": "Neutral",
+   "date": "2026-11-03"
+  },
+  {
+   "name": "Norway",
+   "from": "Overweight",
+   "to": "Neutral",
+   "date": "2026-11-03"
+  },
+  {
+   "name": "Hong Kong",
+   "from": "Neutral",
+   "to": "Underweight",
+   "date": "2026-11-05"
+  },
+  {
+   "name": "Hong Kong",
+   "from": "Underweight",
+   "to": "Neutral",
+   "date": "2026-11-07"
+  }
+ ],
+ "practicePortfolios": {
+  "started": "2026-10-05",
+  "valuesGbp": {
+   "top": 10239.99,
+   "bottom": 9967.38,
+   "all": 10159.48,
+   "gilts": 10237.62,
+   "cash": 10032.93
+  },
+  "startValueGbp": 10000,
+  "topHoldings": [
+   {
+    "name": "Brazil",
+    "sincePick": 0.026859475558470125
+   },
+   {
+    "name": "France",
+    "sincePick": 0.011248004517969923
+   },
+   {
+    "name": "Philippines",
+    "sincePick": 0.007627168525004446
+   },
+   {
+    "name": "Mexico",
+    "sincePick": 0.00741875616790888
+   },
+   {
+    "name": "New Zealand",
+    "sincePick": 0.0032242573693850307
+   },
+   {
+    "name": "Peru",
+    "sincePick": 0.003061781013874665
+   },
+   {
+    "name": "Poland",
+    "sincePick": 0.0
+   },
+   {
+    "name": "Indonesia",
+    "sincePick": -0.001955126214079339
+   }
+  ],
+  "bottomHoldings": [
+   {
+    "name": "Singapore",
+    "sincePick": 0.011131277799865114
+   },
+   {
+    "name": "Hungary",
+    "sincePick": 0.006298297144379461
+   },
+   {
+    "name": "Germany",
+    "sincePick": 0.005731657275447777
+   },
+   {
+    "name": "Switzerland",
+    "sincePick": 0.0028287092059742225
+   },
+   {
+    "name": "China",
+    "sincePick": 0.0021549394033968383
+   },
+   {
+    "name": "Japan",
+    "sincePick": 0.0009775189541130214
+   },
+   {
+    "name": "Thailand",
+    "sincePick": 4.189337841409291e-05
+   },
+   {
+    "name": "Hong Kong",
+    "sincePick": null
+   }
+  ],
+  "nextPicks": "2026-12-01"
+ },
+ "scoreTestOnThePast": {
+  "months": 117,
+  "topVsAveragePerYear": 0.03380221022719243,
+  "bottomVsAveragePerYear": -0.019480636047173296,
+  "reliabilityT": 2.547465597891495,
+  "developedOnlyTopVsAveragePerYear": 0.023179467949634096
+ },
+ "nextWeek": [
+  {
+   "date": "2026-11-10",
+   "type": "data",
+   "who": "US BLS",
+   "what": "CPI (Oct 2026)",
+   "source": "https://www.bls.gov/schedule/news_release/cpi.htm"
+  }
+ ]
+}
