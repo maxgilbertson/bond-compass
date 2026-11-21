@@ -1,6 +1,6 @@
 {
  "weekEnding": "2026-11-20",
- "generated": "2026-11-21T12:11+00:00",
+ "generated": "2026-11-21T14:57+00:00",
  "headlineYields": [
   {
    "name": "United States",
@@ -128,23 +128,6 @@
    "staleQuote": false
   },
   {
-   "name": "Peru",
-   "code": "PE",
-   "maturity": "10Y",
-   "yield": 6.78,
-   "weekChangeBp": 19.0,
-   "monthChangeBp": 6.0,
-   "yearChangeBp": 78.1,
-   "realYield": 4.64,
-   "yieldHedgedIntoPounds": 6.28,
-   "score": 61,
-   "signal": "Overweight",
-   "scoreChangeWeek": 0.9,
-   "rating": "BBB-",
-   "debtPctGdp": 28.6,
-   "staleQuote": false
-  },
-  {
    "name": "South Africa",
    "code": "ZA",
    "maturity": "10Y",
@@ -162,6 +145,23 @@
    "staleQuote": false
   },
   {
+   "name": "Peru",
+   "code": "PE",
+   "maturity": "10Y",
+   "yield": 6.76,
+   "weekChangeBp": 17.0,
+   "monthChangeBp": 4.0,
+   "yearChangeBp": 76.1,
+   "realYield": 4.62,
+   "yieldHedgedIntoPounds": 6.26,
+   "score": 60,
+   "signal": "Overweight",
+   "scoreChangeWeek": 0.1,
+   "rating": "BBB-",
+   "debtPctGdp": 28.6,
+   "staleQuote": false
+  },
+  {
    "name": "Indonesia",
    "code": "ID",
    "maturity": "10Y",
@@ -173,7 +173,7 @@
    "yieldHedgedIntoPounds": 5.961,
    "score": 69,
    "signal": "Overweight",
-   "scoreChangeWeek": -0.9,
+   "scoreChangeWeek": -0.5,
    "rating": "BBB",
    "debtPctGdp": 41.7,
    "staleQuote": false
@@ -369,7 +369,7 @@
  ],
  "bondVolatilityMOVE": {
   "level": 106,
-  "monthChange": 10
+  "monthChange": -1
  },
  "centralBankMovesThisWeek": [],
  "conditions": [
@@ -434,7 +434,7 @@
    "yieldHedgedIntoPounds": 5.961,
    "score": 69,
    "signal": "Overweight",
-   "scoreChangeWeek": -0.9,
+   "scoreChangeWeek": -0.5,
    "rating": "BBB",
    "debtPctGdp": 41.7,
    "staleQuote": false
@@ -799,9 +799,9 @@
  "practicePortfolios": {
   "started": "2026-10-05",
   "valuesGbp": {
-   "top": 10224.83,
+   "top": 10226.86,
    "bottom": 9944.33,
-   "all": 10137.54,
+   "all": 10137.98,
    "gilts": 10184.21,
    "cash": 10048.4
   },
@@ -837,7 +837,7 @@
    },
    {
     "name": "Peru",
-    "sincePick": -0.006813183872835915
+    "sincePick": -0.005215294519862246
    }
   ],
   "bottomHoldings": [
